@@ -83,7 +83,7 @@ body { font-family: var(--font); background: var(--bg3); color: var(--text); min
 .edit-name-btn { font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--hint); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .edit-name-btn:hover { color: var(--text); border-color: var(--text); }
 .task-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-.expand-icon { font-size: 10px; color: var(--hint); transition: transform 0.2s; cursor: pointer; }
+.expand-icon { font-size: 10px; color: var(--hint); transition: transform 0.2s; cursor: pointer; padding: 4px; }
 .task-card.open .expand-icon { transform: rotate(180deg); }
 
 /* BADGES */
@@ -98,21 +98,35 @@ body { font-family: var(--font); background: var(--bg3); color: var(--text); min
 .b-pending { background: var(--bg2); color: var(--muted); }
 
 /* TASK BODY */
-.task-body { display: none; padding: 16px; border-top: 0.5px solid var(--border); }
+.task-body { display: none; border-top: 0.5px solid var(--border); }
 .task-card.open .task-body { display: block; }
+
+/* TABS INSIDE CARD */
+.inner-tabs { display: flex; border-bottom: 0.5px solid var(--border); padding: 0 16px; background: var(--bg2); }
+.inner-tab { font-family: var(--font); font-size: 12px; padding: 8px 12px; border: none; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; white-space: nowrap; transition: color 0.15s; }
+.inner-tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 500; }
+
+.inner-panel { padding: 16px; display: none; }
+.inner-panel.active { display: block; }
+
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 @media (max-width: 580px) { .detail-grid { grid-template-columns: 1fr; } }
 .full { grid-column: 1 / -1; }
 .field-group { display: flex; flex-direction: column; gap: 5px; }
 .field-label { font-size: 11px; font-weight: 500; color: var(--muted); }
-.field-input { font-family: var(--font); font-size: 13px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); width: 100%; outline: none; transition: border-color 0.15s; }
+.field-input { font-family: var(--font); font-size: 13px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); width: 100%; outline: none; transition: border-color 0.15s, background 0.15s; }
 .field-input:focus { border-color: var(--text); background: var(--bg); }
 textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--font); }
+
 .check-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 10px 12px; background: var(--bg2); border-radius: var(--radius); margin: 10px 0 14px; }
 .check-item { display: flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
 .check-item input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--text); }
-.save-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+
+.save-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 12px; border-top: 0.5px solid var(--border); margin-top: 4px; }
 .save-notice { font-size: 12px; color: var(--success-text); margin-right: auto; display: none; }
+
+/* CHANGED INDICATOR */
+.changed-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn-text); display: none; flex-shrink: 0; }
 
 /* DIVIDERS */
 .divider { font-size: 11px; font-weight: 600; color: var(--hint); letter-spacing: 0.06em; text-transform: uppercase; margin: 18px 0 8px; }
@@ -125,6 +139,7 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
 .dot-l { background: var(--success-text); }
 .dur-chip { font-size: 11px; background: var(--bg2); color: var(--muted); padding: 3px 9px; border-radius: 20px; }
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; }
+
 .share-bar { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .share-url { flex: 1; font-size: 12px; color: var(--muted); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .copied { font-size: 12px; color: var(--success-text); display: none; }
@@ -136,41 +151,37 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
 .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 16px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
-/* REPORT MODAL */
+/* REPORT */
 .report-modal { max-width: 780px; }
-.report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
-.report-title { font-size: 18px; font-weight: 600; }
-.report-subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.report-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-bottom: 20px; padding: 16px; background: var(--bg2); border-radius: var(--radius-lg); }
-.rsum-item { text-align: center; }
-.rsum-val { font-size: 22px; font-weight: 600; }
-.rsum-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
-.report-section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
-.report-task-row { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
-.report-task-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.report-task-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; }
-.report-task-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; font-size: 12px; color: var(--muted); }
-.report-detail-item { display: flex; flex-direction: column; gap: 2px; }
-.report-detail-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--hint); }
-.report-detail-val { font-size: 12px; color: var(--text); }
 .report-controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; padding: 14px 16px; background: var(--bg2); border-radius: var(--radius-lg); }
 .report-field { display: flex; flex-direction: column; gap: 5px; }
 .report-field label { font-size: 11px; font-weight: 500; color: var(--muted); }
 .report-field input, .report-field select { font-family: var(--font); font-size: 13px; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); outline: none; }
-.report-body { max-height: 55vh; overflow-y: auto; }
+.report-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 10px; margin-bottom: 20px; padding: 16px; background: var(--bg2); border-radius: var(--radius-lg); }
+.rsum-item { text-align: center; }
+.rsum-val { font-size: 22px; font-weight: 600; }
+.rsum-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.report-section-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 0.5px solid var(--border); }
+.report-task-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+.report-task-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.report-task-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; }
+.report-task-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; }
+.report-detail-item { display: flex; flex-direction: column; gap: 2px; }
+.report-detail-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--hint); }
+.report-detail-val { font-size: 12px; color: var(--text); }
+.report-body { max-height: 50vh; overflow-y: auto; }
 .no-report { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
-.print-hide { }
-@media print {
-  .print-hide { display: none !important; }
-  .modal-backdrop { position: static; background: none; padding: 0; }
-  .modal { max-height: none; border: none; box-shadow: none; max-width: 100%; }
-  body { background: white; }
-}
 
 /* SPINNER */
 .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+@media print {
+  .print-hide { display: none !important; }
+  .modal-backdrop { position: static; background: none; padding: 0; }
+  .modal { max-height: none; border: none; max-width: 100%; }
+  body { background: white; }
+}
 @media (max-width: 700px) {
   .topbar { padding: 0 12px; height: auto; min-height: 56px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
   .container { padding: 14px 12px; }
@@ -250,7 +261,7 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
         <input class="field-input" id="m-title" placeholder="Enter task name...">
       </div>
       <div class="field-group">
-        <label class="field-label">Recurrence</label>
+        <label class="field-label">Recurrence / Type</label>
         <select class="field-input" id="m-type">
           <option value="weekly">Weekly</option>
           <option value="monthly">Monthly</option>
@@ -292,16 +303,9 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
     <div class="print-hide">
       <h3 style="margin-bottom:14px;">📊 Task Report</h3>
       <div class="report-controls">
-        <div class="report-field">
-          <label>From date</label>
-          <input type="date" id="r-from">
-        </div>
-        <div class="report-field">
-          <label>To date</label>
-          <input type="date" id="r-to">
-        </div>
-        <div class="report-field">
-          <label>Status filter</label>
+        <div class="report-field"><label>From date</label><input type="date" id="r-from"></div>
+        <div class="report-field"><label>To date</label><input type="date" id="r-to"></div>
+        <div class="report-field"><label>Status</label>
           <select id="r-status">
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
@@ -310,8 +314,7 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
             <option value="done">Done</option>
           </select>
         </div>
-        <div class="report-field">
-          <label>Type filter</label>
+        <div class="report-field"><label>Type</label>
           <select id="r-type">
             <option value="">All types</option>
             <option value="weekly">Weekly</option>
@@ -323,11 +326,9 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
         <button class="btn btn-primary btn-sm" onclick="generateReport()">Generate</button>
       </div>
     </div>
-
     <div id="report-output"></div>
-
     <div class="modal-actions print-hide">
-      <button class="btn btn-sm" onclick="printReport()">🖨 Print / Save PDF</button>
+      <button class="btn btn-sm" onclick="window.print()">🖨 Print / PDF</button>
       <button class="btn btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
       <button class="btn btn-primary btn-sm" onclick="closeReport()">Close</button>
     </div>
@@ -336,6 +337,8 @@ textarea.field-input { resize: vertical; min-height: 64px; font-family: var(--fo
 
 <script>
 'use strict';
+
+// ── IMPORTANT: same key as before so existing tasks are preserved ──
 const KEY = 'tasktracker_v4';
 let tasks = [], tab = 'all', timers = {};
 
@@ -351,22 +354,21 @@ function seed() {
   const t = new Date();
   const add = n => { const d = new Date(t); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
   const sub = n => { const d = new Date(t); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
-  const mk = (title,type,priority,status,due,desc,blockers,startedAt,endedAt) => ({
+  const mk = (title,type,priority,status,due,desc,blockers) => ({
     id:uid(), title, type, priority, status, due:due||'',
     assignee:'', desc:desc||'', blockers:blockers||'',
-    startedAt:startedAt||'', endedAt:endedAt||'',
-    qcDone:false, signedOff:false, source:'manual'
+    startedAt:'', endedAt:'', qcDone:false, signedOff:false, source:'manual'
   });
   tasks = [
-    mk('Weekly team standup','weekly','high','inprogress',add(1),'Monday morning sync with the full team'),
+    mk('Weekly team standup','weekly','high','inprogress',add(1),'Monday morning sync'),
     mk('Sprint planning session','weekly','high','pending',add(3),'Review velocity and plan next sprint'),
     mk('Code review backlog','weekly','medium','pending',add(5),'Clear all pending pull requests'),
     mk('Monthly financial report','monthly','high','pending',add(10),'Prepare and submit monthly financials'),
-    mk('Infrastructure security audit','monthly','medium','blocked',add(8),'Review and patch all systems','Waiting on vendor access credentials'),
-    mk('Team 1-on-1 check-ins','monthly','medium','done',sub(5),'Monthly check-in with all direct reports','','',''),
+    mk('Infrastructure security audit','monthly','medium','blocked',add(8),'Review and patch systems','Waiting on vendor access'),
+    mk('Team 1-on-1 check-ins','monthly','medium','done',sub(5),'Monthly check-in with direct reports'),
     mk('Q2 OKR review and planning','quarterly','high','pending',add(45),'Assess Q1 results, define Q2 objectives'),
-    mk('Vendor contract renewals','quarterly','medium','pending',add(60),'Review and renew key vendor agreements'),
-    mk('Annual budget planning','quarterly','high','pending',add(75),'Prepare department budget for next fiscal year'),
+    mk('Vendor contract renewals','quarterly','medium','pending',add(60),'Review and renew vendor agreements'),
+    mk('Annual budget planning','quarterly','high','pending',add(75),'Prepare department budget'),
   ];
   save();
 }
@@ -396,7 +398,7 @@ function render() {
   let list=tasks.filter(t=>{
     if(tab==='calendar'&&t.source!=='calendar')return false;
     if(tab!=='all'&&tab!=='calendar'&&t.type!==tab)return false;
-    if(q&&![t.title,t.desc,t.blockers].join(' ').toLowerCase().includes(q))return false;
+    if(q&&![t.title,t.desc||'',t.blockers||''].join(' ').toLowerCase().includes(q))return false;
     if(sf&&t.status!==sf)return false;
     if(pf&&t.priority!==pf)return false;
     return true;
@@ -421,6 +423,10 @@ function render() {
   el.innerHTML=html;
 }
 
+// ── HELPERS ───────────────────────────────────────────────────
+const e = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function getDur(s,en){const ms=new Date(en)-new Date(s);if(isNaN(ms)||ms<=0)return'—';const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h?`${h}h ${m}m`:`${m}m`;}
+
 // ── TASK CARD ─────────────────────────────────────────────────
 function card(t) {
   const sc={done:'b-done',inprogress:'b-inprogress',blocked:'b-blocked',pending:'b-pending'}[t.status]||'b-pending';
@@ -430,140 +436,279 @@ function card(t) {
   const due=t.due?new Date(t.due+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
   const calBadge=t.source==='calendar'?'<span class="badge b-inprogress" style="font-size:10px;">📅 Cal</span>':'';
   const dur=t.startedAt&&t.endedAt?`<span class="dur-chip">${getDur(t.startedAt,t.endedAt)}</span>`:'';
-  const e=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
   return `<div class="task-card" id="c-${t.id}">
-<div class="task-header">
-  <div class="dot ${dc}"></div>
-  <div class="task-title-wrap">
-    <span class="task-title-text" onclick="toggle('${t.id}')" title="Click to expand">${e(t.title)}</span>
-    <input class="task-title-input" id="ti-${t.id}" value="${e(t.title)}"
-      onkeydown="titleKeydown(event,'${t.id}')"
-      onblur="saveTitleEdit('${t.id}')">
-    <button class="edit-name-btn" onclick="startTitleEdit('${t.id}')" title="Edit task name">✏ Rename</button>
+  <div class="task-header">
+    <div class="dot ${dc}"></div>
+    <div class="task-title-wrap">
+      <span class="task-title-text" onclick="toggle('${t.id}')" title="Click to expand/collapse">${e(t.title)}</span>
+      <input class="task-title-input" id="ti-${t.id}" value="${e(t.title)}"
+        onkeydown="titleKeydown(event,'${t.id}')"
+        onblur="saveTitleEdit('${t.id}')">
+      <button class="edit-name-btn" id="tnbtn-${t.id}" onclick="startTitleEdit('${t.id}')">✏ Rename</button>
+    </div>
+    <div class="task-meta">
+      ${calBadge}
+      <span class="badge ${tc}" id="badge-type-${t.id}">${t.type}</span>
+      <span class="badge ${sc}" id="badge-status-${t.id}">${sl}</span>
+      <span style="font-size:12px;color:var(--hint);white-space:nowrap;" id="badge-due-${t.id}">${due}</span>
+      ${dur}
+      <div class="changed-dot" id="chg-${t.id}" title="Unsaved changes"></div>
+      <span class="expand-icon" onclick="toggle('${t.id}')">▼</span>
+    </div>
   </div>
-  <div class="task-meta">
-    ${calBadge}
-    <span class="badge ${tc}">${t.type}</span>
-    <span class="badge ${sc}">${sl}</span>
-    <span style="font-size:12px;color:var(--hint);white-space:nowrap;">${due}</span>
-    ${dur}
-    <span class="expand-icon" onclick="toggle('${t.id}')">▼</span>
+
+  <div class="task-body">
+    <!-- inner tabs -->
+    <div class="inner-tabs">
+      <button class="inner-tab active" onclick="switchInner('${t.id}','details',this)">Details</button>
+      <button class="inner-tab" onclick="switchInner('${t.id}','tracking',this)">Tracking</button>
+      <button class="inner-tab" onclick="switchInner('${t.id}','notes',this)">Notes &amp; blockers</button>
+    </div>
+
+    <!-- DETAILS PANEL: all core properties editable -->
+    <div class="inner-panel active" id="ip-details-${t.id}">
+      <div class="detail-grid">
+        <div class="field-group full">
+          <label class="field-label">Task title</label>
+          <input class="field-input" id="f-title-${t.id}" value="${e(t.title)}"
+            oninput="draft('${t.id}','title',this.value);markChanged('${t.id}')">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Recurrence / Type</label>
+          <select class="field-input" id="f-type-${t.id}" onchange="draft('${t.id}','type',this.value);markChanged('${t.id}')">
+            <option value="weekly"   ${t.type==='weekly'?'selected':''}>Weekly</option>
+            <option value="monthly"  ${t.type==='monthly'?'selected':''}>Monthly</option>
+            <option value="quarterly"${t.type==='quarterly'?'selected':''}>Quarterly</option>
+            <option value="oneoff"   ${t.type==='oneoff'?'selected':''}>One-off</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Priority</label>
+          <select class="field-input" id="f-pri-${t.id}" onchange="draft('${t.id}','priority',this.value);markChanged('${t.id}')">
+            <option value="high"  ${t.priority==='high'?'selected':''}>High</option>
+            <option value="medium"${t.priority==='medium'?'selected':''}>Medium</option>
+            <option value="low"   ${t.priority==='low'?'selected':''}>Low</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Status</label>
+          <select class="field-input" id="f-status-${t.id}" onchange="draft('${t.id}','status',this.value);markChanged('${t.id}')">
+            <option value="pending"   ${t.status==='pending'?'selected':''}>Pending</option>
+            <option value="inprogress"${t.status==='inprogress'?'selected':''}>In progress</option>
+            <option value="blocked"   ${t.status==='blocked'?'selected':''}>Blocked</option>
+            <option value="done"      ${t.status==='done'?'selected':''}>Done</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Due date</label>
+          <input class="field-input" type="date" id="f-due-${t.id}" value="${t.due||''}"
+            onchange="draft('${t.id}','due',this.value);markChanged('${t.id}')">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Assignee</label>
+          <input class="field-input" id="f-asn-${t.id}" value="${e(t.assignee||'')}" placeholder="Name or email..."
+            oninput="draft('${t.id}','assignee',this.value);markChanged('${t.id}')">
+        </div>
+        <div class="field-group full">
+          <label class="field-label">Description</label>
+          <textarea class="field-input" id="f-desc-${t.id}"
+            oninput="draft('${t.id}','desc',this.value);markChanged('${t.id}')">${e(t.desc||'')}</textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <span class="save-notice" id="sn-${t.id}">✓ Saved</span>
+        <button class="btn btn-sm btn-danger" onclick="del('${t.id}')">Delete task</button>
+        <button class="btn btn-sm" onclick="discardChanges('${t.id}')">Discard</button>
+        <button class="btn btn-primary btn-sm" onclick="saveTask('${t.id}')">Save changes</button>
+      </div>
+    </div>
+
+    <!-- TRACKING PANEL -->
+    <div class="inner-panel" id="ip-tracking-${t.id}">
+      <div class="detail-grid">
+        <div class="field-group">
+          <label class="field-label">Started at</label>
+          <input class="field-input" type="datetime-local" id="f-start-${t.id}" value="${t.startedAt||''}"
+            onchange="draft('${t.id}','startedAt',this.value);markChanged('${t.id}')">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Ended at</label>
+          <input class="field-input" type="datetime-local" id="f-end-${t.id}" value="${t.endedAt||''}"
+            onchange="draft('${t.id}','endedAt',this.value);markChanged('${t.id}')">
+        </div>
+      </div>
+      ${t.startedAt&&t.endedAt?`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Duration: <strong>${getDur(t.startedAt,t.endedAt)}</strong></p>`:''}
+      <div class="check-row">
+        <label class="check-item">
+          <input type="checkbox" id="f-qc-${t.id}" ${t.qcDone?'checked':''}
+            onchange="draft('${t.id}','qcDone',this.checked);markChanged('${t.id}')">
+          QC done
+        </label>
+        <label class="check-item">
+          <input type="checkbox" id="f-sig-${t.id}" ${t.signedOff?'checked':''}
+            onchange="draft('${t.id}','signedOff',this.checked);markChanged('${t.id}')">
+          Signed off
+        </label>
+      </div>
+      <div class="save-row">
+        <span class="save-notice" id="sn2-${t.id}">✓ Saved</span>
+        <button class="btn btn-sm" onclick="discardChanges('${t.id}')">Discard</button>
+        <button class="btn btn-primary btn-sm" onclick="saveTask('${t.id}')">Save changes</button>
+      </div>
+    </div>
+
+    <!-- NOTES & BLOCKERS PANEL -->
+    <div class="inner-panel" id="ip-notes-${t.id}">
+      <div class="field-group" style="margin-bottom:14px;">
+        <label class="field-label">Blockers</label>
+        <textarea class="field-input" id="f-blk-${t.id}" placeholder="Describe any blockers..."
+          oninput="draft('${t.id}','blockers',this.value);markChanged('${t.id}')">${e(t.blockers||'')}</textarea>
+      </div>
+      <div class="save-row">
+        <span class="save-notice" id="sn3-${t.id}">✓ Saved</span>
+        <button class="btn btn-sm" onclick="discardChanges('${t.id}')">Discard</button>
+        <button class="btn btn-primary btn-sm" onclick="saveTask('${t.id}')">Save changes</button>
+      </div>
+    </div>
   </div>
-</div>
-<div class="task-body">
-  ${t.desc?`<p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">${e(t.desc)}</p>`:''}
-  <div class="detail-grid">
-    <div class="field-group"><label class="field-label">Status</label>
-      <select class="field-input" onchange="upd('${t.id}','status',this.value)">
-        <option value="pending" ${t.status==='pending'?'selected':''}>Pending</option>
-        <option value="inprogress" ${t.status==='inprogress'?'selected':''}>In progress</option>
-        <option value="blocked" ${t.status==='blocked'?'selected':''}>Blocked</option>
-        <option value="done" ${t.status==='done'?'selected':''}>Done</option>
-      </select></div>
-    <div class="field-group"><label class="field-label">Priority</label>
-      <select class="field-input" onchange="upd('${t.id}','priority',this.value)">
-        <option value="high" ${t.priority==='high'?'selected':''}>High</option>
-        <option value="medium" ${t.priority==='medium'?'selected':''}>Medium</option>
-        <option value="low" ${t.priority==='low'?'selected':''}>Low</option>
-      </select></div>
-    <div class="field-group"><label class="field-label">Started at</label>
-      <input class="field-input" type="datetime-local" value="${t.startedAt||''}" onchange="upd('${t.id}','startedAt',this.value)"></div>
-    <div class="field-group"><label class="field-label">Ended at</label>
-      <input class="field-input" type="datetime-local" value="${t.endedAt||''}" onchange="upd('${t.id}','endedAt',this.value)"></div>
-    <div class="field-group"><label class="field-label">Due date</label>
-      <input class="field-input" type="date" value="${t.due||''}" onchange="upd('${t.id}','due',this.value)"></div>
-    <div class="field-group"><label class="field-label">Assignee</label>
-      <input class="field-input" value="${e(t.assignee||'')}" placeholder="Name or email..." oninput="upd('${t.id}','assignee',this.value)"></div>
-    <div class="field-group full"><label class="field-label">Blockers / notes</label>
-      <textarea class="field-input" placeholder="Describe any blockers..." oninput="upd('${t.id}','blockers',this.value)">${e(t.blockers||'')}</textarea></div>
-  </div>
-  <div class="check-row">
-    <label class="check-item"><input type="checkbox" ${t.qcDone?'checked':''} onchange="upd('${t.id}','qcDone',this.checked)"> QC done</label>
-    <label class="check-item"><input type="checkbox" ${t.signedOff?'checked':''} onchange="upd('${t.id}','signedOff',this.checked)"> Signed off</label>
-    ${t.startedAt&&t.endedAt?`<span class="dur-chip">Duration: ${getDur(t.startedAt,t.endedAt)}</span>`:''}
-  </div>
-  <div class="save-row">
-    <span class="save-notice" id="sn-${t.id}">✓ Saved</span>
-    <button class="btn btn-sm btn-danger" onclick="del('${t.id}')">Delete</button>
-    <button class="btn btn-primary btn-sm" onclick="saveTask('${t.id}')">Save changes</button>
-  </div>
-</div>
 </div>`;
 }
 
-// ── TITLE EDIT ────────────────────────────────────────────────
-function startTitleEdit(id) {
-  const textEl = document.querySelector(`#c-${id} .task-title-text`);
-  const inputEl = document.getElementById('ti-'+id);
-  const btnEl = document.querySelector(`#c-${id} .edit-name-btn`);
-  if (!textEl||!inputEl) return;
-  textEl.style.display = 'none';
-  inputEl.style.display = 'block';
-  btnEl.textContent = '✓ Save';
-  btnEl.onclick = () => saveTitleEdit(id);
-  inputEl.focus();
-  inputEl.select();
+// ── INNER TABS ────────────────────────────────────────────────
+function switchInner(id, panel, el) {
+  const body = document.getElementById('c-'+id).querySelector('.task-body');
+  body.querySelectorAll('.inner-tab').forEach(t=>t.classList.remove('active'));
+  body.querySelectorAll('.inner-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  const p = document.getElementById('ip-'+panel+'-'+id);
+  if(p) p.classList.add('active');
 }
 
-function saveTitleEdit(id) {
+// ── DRAFT / CHANGED ───────────────────────────────────────────
+// We write changes directly to the tasks array as drafts and mark the card dirty.
+// On Save, we persist. On Discard, we re-render the card from saved state.
+let drafts = {}; // id -> {field: value}
+
+function draft(id, field, value) {
+  if(!drafts[id]) drafts[id] = {};
+  drafts[id][field] = value;
   const t = tasks.find(x=>x.id===id);
-  const inputEl = document.getElementById('ti-'+id);
-  const textEl = document.querySelector(`#c-${id} .task-title-text`);
-  const btnEl = document.querySelector(`#c-${id} .edit-name-btn`);
-  if (!t||!inputEl||!textEl) return;
-  const newTitle = inputEl.value.trim();
-  if (newTitle && newTitle !== t.title) {
-    t.title = newTitle;
-    save();
-    metrics();
-    // update displayed text without full re-render
-    const e = s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    textEl.textContent = newTitle;
-    inputEl.value = e(newTitle);
+  if(t) t[field] = value; // apply immediately to in-memory object
+}
+
+function markChanged(id) {
+  const dot = document.getElementById('chg-'+id);
+  if(dot) dot.style.display = 'block';
+  // auto-save after pause
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(()=>saveTask(id, true), 2500);
+}
+
+function discardChanges(id) {
+  // reload this task's card from last persisted state
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY));
+    const fresh = stored && stored.find(x=>x.id===id);
+    if(fresh) { const idx=tasks.findIndex(x=>x.id===id); if(idx>-1)tasks[idx]=fresh; }
+  } catch(e) {}
+  delete drafts[id];
+  // re-render just this card
+  const card_el = document.getElementById('c-'+id);
+  if(!card_el) return;
+  const wasOpen = card_el.classList.contains('open');
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  card_el.outerHTML = card(t);
+  if(wasOpen) { const nc=document.getElementById('c-'+id); if(nc)nc.classList.add('open'); }
+}
+
+// ── TOGGLE ────────────────────────────────────────────────────
+function toggle(id) { const el=document.getElementById('c-'+id); if(el)el.classList.toggle('open'); }
+
+// ── TITLE INLINE EDIT ─────────────────────────────────────────
+function startTitleEdit(id) {
+  const textEl=document.querySelector(`#c-${id} .task-title-text`);
+  const inputEl=document.getElementById('ti-'+id);
+  const btn=document.getElementById('tnbtn-'+id);
+  if(!textEl||!inputEl)return;
+  textEl.style.display='none';
+  inputEl.style.display='block';
+  btn.textContent='✓ Save';
+  btn.onclick=()=>saveTitleEdit(id);
+  inputEl.focus(); inputEl.select();
+}
+function saveTitleEdit(id) {
+  const t=tasks.find(x=>x.id===id);
+  const inputEl=document.getElementById('ti-'+id);
+  const textEl=document.querySelector(`#c-${id} .task-title-text`);
+  const btn=document.getElementById('tnbtn-'+id);
+  const fTitle=document.getElementById('f-title-'+id);
+  if(!t||!inputEl)return;
+  const newTitle=inputEl.value.trim();
+  if(newTitle&&newTitle!==t.title){
+    t.title=newTitle;
+    if(textEl)textEl.textContent=newTitle;
+    if(fTitle)fTitle.value=newTitle;
+    save(); metrics();
     flashSave(id);
   }
-  inputEl.style.display = 'none';
-  textEl.style.display = '';
-  if (btnEl) { btnEl.textContent = '✏ Rename'; btnEl.onclick = ()=>startTitleEdit(id); }
+  if(inputEl)inputEl.style.display='none';
+  if(textEl)textEl.style.display='';
+  if(btn){btn.textContent='✏ Rename';btn.onclick=()=>startTitleEdit(id);}
 }
-
-function titleKeydown(e, id) {
-  if (e.key==='Enter') { e.preventDefault(); saveTitleEdit(id); }
-  if (e.key==='Escape') {
-    const t = tasks.find(x=>x.id===id);
-    const inputEl = document.getElementById('ti-'+id);
-    const textEl = document.querySelector(`#c-${id} .task-title-text`);
-    const btnEl = document.querySelector(`#c-${id} .edit-name-btn`);
-    if (inputEl&&t) inputEl.value = t.title;
-    if (inputEl) inputEl.style.display='none';
-    if (textEl) textEl.style.display='';
-    if (btnEl) { btnEl.textContent='✏ Rename'; btnEl.onclick=()=>startTitleEdit(id); }
+function titleKeydown(ev,id){
+  if(ev.key==='Enter'){ev.preventDefault();saveTitleEdit(id);}
+  if(ev.key==='Escape'){
+    const t=tasks.find(x=>x.id===id);
+    const inputEl=document.getElementById('ti-'+id);
+    const textEl=document.querySelector(`#c-${id} .task-title-text`);
+    const btn=document.getElementById('tnbtn-'+id);
+    if(inputEl&&t)inputEl.value=t.title;
+    if(inputEl)inputEl.style.display='none';
+    if(textEl)textEl.style.display='';
+    if(btn){btn.textContent='✏ Rename';btn.onclick=()=>startTitleEdit(id);}
   }
 }
 
-// ── CORE ACTIONS ──────────────────────────────────────────────
-function toggle(id) { const el=document.getElementById('c-'+id); if(el)el.classList.toggle('open'); }
-function getDur(s,e){const ms=new Date(e)-new Date(s);if(isNaN(ms)||ms<=0)return'—';const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h?`${h}h ${m}m`:`${m}m`;}
-
-function upd(id,field,val){
-  const t=tasks.find(x=>x.id===id); if(!t)return;
-  t[field]=val;
-  clearTimeout(timers[id]);
-  timers[id]=setTimeout(()=>saveTask(id,true),1800);
-}
-
+// ── SAVE / DELETE ─────────────────────────────────────────────
 function flashSave(id) {
-  const el=document.getElementById('sn-'+id);
-  if(el){el.style.display='inline';setTimeout(()=>el.style.display='none',2000);}
+  ['sn-','sn2-','sn3-'].forEach(pre=>{
+    const el=document.getElementById(pre+id);
+    if(el){el.style.display='inline';setTimeout(()=>el.style.display='none',2200);}
+  });
 }
 
-function saveTask(id,silent){
+function saveTask(id, silent) {
   save(); metrics();
-  if(!silent){ render(); flashSave(id); }
+  delete drafts[id];
+  // clear changed dot
+  const dot=document.getElementById('chg-'+id);
+  if(dot)dot.style.display='none';
+  // update header badges without full re-render
+  const t=tasks.find(x=>x.id===id);
+  if(t){
+    const sc={done:'b-done',inprogress:'b-inprogress',blocked:'b-blocked',pending:'b-pending'}[t.status]||'b-pending';
+    const sl={done:'Done',inprogress:'In progress',blocked:'Blocked',pending:'Pending'}[t.status]||t.status;
+    const tc={weekly:'b-weekly',monthly:'b-monthly',quarterly:'b-quarterly',oneoff:'b-oneoff'}[t.type]||'b-oneoff';
+    const dc={high:'dot-h',medium:'dot-m',low:'dot-l'}[t.priority]||'dot-l';
+    const due=t.due?new Date(t.due+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    const bType=document.getElementById('badge-type-'+id);
+    const bStatus=document.getElementById('badge-status-'+id);
+    const bDue=document.getElementById('badge-due-'+id);
+    const dotEl=document.querySelector(`#c-${id} .task-header .dot`);
+    if(bType){bType.className='badge '+tc;bType.textContent=t.type;}
+    if(bStatus){bStatus.className='badge '+sc;bStatus.textContent=sl;}
+    if(bDue)bDue.textContent=due;
+    if(dotEl)dotEl.className='dot '+dc;
+    // update title display
+    const titleText=document.querySelector(`#c-${id} .task-title-text`);
+    if(titleText)titleText.textContent=t.title;
+  }
+  if(!silent)flashSave(id);
 }
 
-function del(id){
+function del(id) {
   if(!confirm('Delete this task? This cannot be undone.'))return;
   tasks=tasks.filter(t=>t.id!==id); save(); metrics(); render();
 }
@@ -583,52 +728,52 @@ function addTask(){
   const title=document.getElementById('m-title').value.trim();
   if(!title){document.getElementById('m-title').style.borderColor='var(--danger-text)';document.getElementById('m-title').focus();return;}
   document.getElementById('m-title').style.borderColor='';
-  tasks.unshift({id:uid(),title,type:document.getElementById('m-type').value,priority:document.getElementById('m-pri').value,status:'pending',due:document.getElementById('m-due').value,assignee:document.getElementById('m-asn').value.trim(),desc:document.getElementById('m-desc').value.trim(),blockers:'',startedAt:'',endedAt:'',qcDone:false,signedOff:false,source:'manual'});
+  tasks.unshift({
+    id:uid(), title,
+    type:document.getElementById('m-type').value,
+    priority:document.getElementById('m-pri').value,
+    status:'pending',
+    due:document.getElementById('m-due').value,
+    assignee:document.getElementById('m-asn').value.trim(),
+    desc:document.getElementById('m-desc').value.trim(),
+    blockers:'', startedAt:'', endedAt:'',
+    qcDone:false, signedOff:false, source:'manual'
+  });
   closeAddModal(); save(); metrics(); render();
 }
 
 // ── REPORT ────────────────────────────────────────────────────
-let lastReportData = [];
-
+let lastReportData=[];
 function openReport(){
-  const today = new Date().toISOString().slice(0,10);
-  const monthAgo = new Date(Date.now()-30*86400000).toISOString().slice(0,10);
-  document.getElementById('r-from').value = monthAgo;
-  document.getElementById('r-to').value = today;
-  document.getElementById('r-status').value = '';
-  document.getElementById('r-type').value = '';
-  document.getElementById('report-output').innerHTML = '<div class="no-report">Set your date range and click <strong>Generate</strong> to build the report.</div>';
+  const today=new Date().toISOString().slice(0,10);
+  const monthAgo=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
+  document.getElementById('r-from').value=monthAgo;
+  document.getElementById('r-to').value=today;
+  document.getElementById('r-status').value='';
+  document.getElementById('r-type').value='';
+  document.getElementById('report-output').innerHTML='<div class="no-report">Set your date range and click <strong>Generate</strong>.</div>';
   document.getElementById('report-modal-bg').style.display='flex';
 }
 function closeReport(){document.getElementById('report-modal-bg').style.display='none';}
 
 function generateReport(){
-  const from = document.getElementById('r-from').value;
-  const to = document.getElementById('r-to').value;
-  const sf = document.getElementById('r-status').value;
-  const tf = document.getElementById('r-type').value;
-
+  const from=document.getElementById('r-from').value;
+  const to=document.getElementById('r-to').value||new Date().toISOString().slice(0,10);
+  const sf=document.getElementById('r-status').value;
+  const tf=document.getElementById('r-type').value;
   if(!from){alert('Please select a From date.');return;}
 
-  const toDate = to || new Date().toISOString().slice(0,10);
-
-  // filter tasks whose due date falls in range OR tasks with no due date (include all if no due)
-  let filtered = tasks.filter(t => {
-    const d = t.due || toDate;
-    if(d < from || d > toDate) return false;
-    if(sf && t.status !== sf) return false;
-    if(tf && t.type !== tf) return false;
+  let filtered=tasks.filter(t=>{
+    const d=t.due||to;
+    if(d<from||d>to)return false;
+    if(sf&&t.status!==sf)return false;
+    if(tf&&t.type!==tf)return false;
     return true;
   });
+  lastReportData=filtered;
 
-  lastReportData = filtered;
+  if(!filtered.length){document.getElementById('report-output').innerHTML='<div class="no-report">No tasks found for this range and filters.</div>';return;}
 
-  if(!filtered.length){
-    document.getElementById('report-output').innerHTML = '<div class="no-report">No tasks found in this date range with the selected filters.</div>';
-    return;
-  }
-
-  // summary stats
   const done=filtered.filter(t=>t.status==='done').length;
   const blk=filtered.filter(t=>t.status==='blocked').length;
   const inp=filtered.filter(t=>t.status==='inprogress').length;
@@ -637,22 +782,19 @@ function generateReport(){
   const sig=filtered.filter(t=>t.signedOff).length;
   const pct=filtered.length?Math.round(done/filtered.length*100):0;
 
-  const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-  const fmtDT = d => d ? new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-  const e = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
+  const fmtDate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+  const fmtDT=d=>d?new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
   const statusClass={done:'b-done',inprogress:'b-inprogress',blocked:'b-blocked',pending:'b-pending'};
   const statusLabel={done:'Done',inprogress:'In progress',blocked:'Blocked',pending:'Pending'};
   const typeClass={weekly:'b-weekly',monthly:'b-monthly',quarterly:'b-quarterly',oneoff:'b-oneoff'};
   const priColor={high:'var(--danger-text)',medium:'var(--warn-text)',low:'var(--success-text)'};
 
-  // group by type
   const groups={weekly:[],monthly:[],quarterly:[],oneoff:[]};
-  filtered.forEach(t=>{ if(groups[t.type])groups[t.type].push(t); else groups.oneoff.push(t); });
+  filtered.forEach(t=>{if(groups[t.type])groups[t.type].push(t);else groups.oneoff.push(t);});
 
-  const taskRow = t => `<div class="report-task-row">
+  const taskRow=t=>`<div class="report-task-row">
     <div class="report-task-top">
-      <div class="dot ${t.priority==='high'?'dot-h':t.priority==='medium'?'dot-m':'dot-l'}" style="flex-shrink:0;margin-top:2px;"></div>
+      <div class="dot ${t.priority==='high'?'dot-h':t.priority==='medium'?'dot-m':'dot-l'}" style="flex-shrink:0;"></div>
       <div class="report-task-name">${e(t.title)}</div>
       <span class="badge ${statusClass[t.status]||'b-pending'}">${statusLabel[t.status]||t.status}</span>
       <span class="badge ${typeClass[t.type]||'b-oneoff'}">${t.type}</span>
@@ -660,10 +802,10 @@ function generateReport(){
     <div class="report-task-details">
       <div class="report-detail-item"><span class="report-detail-label">Due</span><span class="report-detail-val">${fmtDate(t.due)}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">Assignee</span><span class="report-detail-val">${e(t.assignee)||'—'}</span></div>
+      <div class="report-detail-item"><span class="report-detail-label">Priority</span><span class="report-detail-val" style="color:${priColor[t.priority]||'inherit'};font-weight:500;">${t.priority}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">Started</span><span class="report-detail-val">${fmtDT(t.startedAt)}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">Ended</span><span class="report-detail-val">${fmtDT(t.endedAt)}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">Duration</span><span class="report-detail-val">${t.startedAt&&t.endedAt?getDur(t.startedAt,t.endedAt):'—'}</span></div>
-      <div class="report-detail-item"><span class="report-detail-label">Priority</span><span class="report-detail-val" style="color:${priColor[t.priority]||'inherit'};font-weight:500;">${t.priority}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">QC done</span><span class="report-detail-val">${t.qcDone?'✅ Yes':'❌ No'}</span></div>
       <div class="report-detail-item"><span class="report-detail-label">Signed off</span><span class="report-detail-val">${t.signedOff?'✅ Yes':'❌ No'}</span></div>
       ${t.blockers?`<div class="report-detail-item" style="grid-column:1/-1"><span class="report-detail-label">Blockers</span><span class="report-detail-val" style="color:var(--danger-text)">${e(t.blockers)}</span></div>`:''}
@@ -671,19 +813,15 @@ function generateReport(){
     </div>
   </div>`;
 
-  let sectionsHtml = '';
-  const labels={weekly:'Weekly tasks',monthly:'Monthly tasks',quarterly:'Quarterly tasks',oneoff:'One-off tasks'};
-  ['weekly','monthly','quarterly','oneoff'].forEach(type=>{
-    if(groups[type].length){
-      sectionsHtml+=`<div class="report-section-title">${labels[type]} (${groups[type].length})</div>`;
-      sectionsHtml+=groups[type].map(taskRow).join('');
-    }
+  let secs='';
+  [{key:'weekly',label:'Weekly tasks'},{key:'monthly',label:'Monthly tasks'},{key:'quarterly',label:'Quarterly tasks'},{key:'oneoff',label:'One-off tasks'}].forEach(({key,label})=>{
+    if(groups[key].length){secs+=`<div class="report-section-title">${label} (${groups[key].length})</div>`+groups[key].map(taskRow).join('');}
   });
 
   document.getElementById('report-output').innerHTML=`
     <div style="margin-bottom:16px;">
-      <div class="report-title">Task Report</div>
-      <div class="report-subtitle">${fmtDate(from)} — ${fmtDate(toDate)} &nbsp;·&nbsp; ${filtered.length} task${filtered.length!==1?'s':''} &nbsp;·&nbsp; Generated ${new Date().toLocaleString()}</div>
+      <div style="font-size:18px;font-weight:600;">Task Report</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">${fmtDate(from)} — ${fmtDate(to)} &nbsp;·&nbsp; ${filtered.length} task${filtered.length!==1?'s':''} &nbsp;·&nbsp; Generated ${new Date().toLocaleString()}</div>
     </div>
     <div class="report-summary">
       <div class="rsum-item"><div class="rsum-val">${filtered.length}</div><div class="rsum-label">Total</div></div>
@@ -694,37 +832,29 @@ function generateReport(){
       <div class="rsum-item"><div class="rsum-val">${qc}</div><div class="rsum-label">QC done</div></div>
       <div class="rsum-item"><div class="rsum-val">${sig}</div><div class="rsum-label">Signed off</div></div>
     </div>
-    <div class="report-body">${sectionsHtml}</div>`;
-}
-
-function printReport(){
-  window.print();
+    <div class="report-body">${secs}</div>`;
 }
 
 function exportCSV(){
   if(!lastReportData.length){alert('Generate a report first.');return;}
   const cols=['title','type','priority','status','due','assignee','startedAt','endedAt','blockers','qcDone','signedOff','desc'];
-  const header=cols.join(',');
   const csvEsc=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
-  const rows=lastReportData.map(t=>cols.map(c=>csvEsc(t[c])).join(','));
-  const csv=[header,...rows].join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
+  const csv=[cols.join(','),...lastReportData.map(t=>cols.map(c=>csvEsc(t[c])).join(','))].join('\n');
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='task-report.csv';
-  a.click();
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='task-report.csv'; a.click();
 }
 
 // ── CALENDAR SYNC ─────────────────────────────────────────────
 async function syncCalendar(){
   const btn=document.getElementById('sync-btn'),st=document.getElementById('sync-status');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Syncing...'; st.textContent='Connecting...';
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Syncing...';st.textContent='Connecting...';
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:'Fetch my upcoming Google Calendar events for the next 30 days. Return ONLY a raw JSON array (no markdown). Each object: title, due (YYYY-MM-DD), type (weekly/monthly/quarterly/oneoff), priority (high/medium/low), desc. Max 20 items.'}],mcp_servers:[{type:'url',url:'https://gcal.mcp.claude.com/mcp',name:'google-calendar'}]})});
     const data=await res.json();
     const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
     let events=[];
-    try{const idx=text.indexOf('[');events=JSON.parse(text.slice(idx,text.lastIndexOf(']')+1));}catch(e){}
+    try{const idx=text.indexOf('[');events=JSON.parse(text.slice(idx,text.lastIndexOf(']')+1));}catch(er){}
     if(Array.isArray(events)&&events.length){
       const existing=new Set(tasks.filter(t=>t.source==='calendar').map(t=>t.title+'|'+t.due));
       let added=0;
@@ -743,10 +873,7 @@ function copyLink(){
   if(navigator.clipboard)navigator.clipboard.writeText(url).then(()=>{const el=document.getElementById('copied');el.style.display='inline';setTimeout(()=>el.style.display='none',2500);});
 }
 
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeAddModal();closeReport();}
-});
-
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){closeAddModal();closeReport();}});
 document.getElementById('share-url').textContent=window.location.href;
 load(); metrics(); render();
 </script>
