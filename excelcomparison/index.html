@@ -619,7 +619,7 @@
   function processFile(side, file) {
     const reader = new FileReader();
     reader.onload = e => {
-      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true, cellText: true, cellNF: true });
       state[side] = { file, wb, name: file.name };
       document.getElementById('name'+side).textContent = file.name;
       document.getElementById('name'+side).classList.add('visible');
@@ -644,12 +644,44 @@
   function getSheetData(wb, sheetName) {
     const ws = wb.Sheets[sheetName];
     if (!ws) return { headers: [], rows: [] };
-    const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    if (json.length === 0) return { headers: [], rows: [] };
-    const headers = json[0].map(h => String(h));
-    const rows = json.slice(1).map(row =>
-      headers.reduce((obj, h, i) => { obj[h] = String(row[i] ?? ''); return obj; }, {})
-    );
+
+    // Decode the sheet range
+    const ref = ws['!ref'];
+    if (!ref) return { headers: [], rows: [] };
+    const range = XLSX.utils.decode_range(ref);
+
+    // Helper: get the display value of a cell exactly as Excel shows it.
+    // SheetJS stores the formatted text in cell.w (the "display" string).
+    // We fall back to the raw value only when .w is absent (e.g. empty cells).
+    function cellDisplay(addr) {
+      const cell = ws[addr];
+      if (!cell) return '';
+      // cell.w is the formatted string Excel would display (respects number format)
+      if (cell.w !== undefined && cell.w !== null) return cell.w;
+      // Fallback for cells without a format string
+      if (cell.v !== undefined && cell.v !== null) return String(cell.v);
+      return '';
+    }
+
+    // Build header row from row 0
+    const headers = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: range.s.r, c });
+      headers.push(cellDisplay(addr) || '');
+    }
+
+    // Build data rows
+    const rows = [];
+    for (let r = range.s.r + 1; r <= range.e.r; r++) {
+      const obj = {};
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const header = headers[c - range.s.c];
+        obj[header] = cellDisplay(addr);
+      }
+      rows.push(obj);
+    }
+
     return { headers, rows };
   }
 
