@@ -534,6 +534,81 @@ td:not(:first-child) { text-align: center; }
   transition: width 0.4s ease;
   width: 0%;
 }
+/* ── blank insights card ─────────────────────────────────────────────────── */
+.insights-card {
+  background: linear-gradient(135deg, #111a10 0%, #0c1409 100%);
+  border: 1px solid #1e3a1a;
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  animation: fadeUp 0.4s ease both;
+}
+.insights-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 1.1rem;
+}
+.insights-icon {
+  font-size: 1.4rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.insights-title {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d4f5c4;
+  margin-bottom: 0.2rem;
+}
+.insights-sub {
+  font-size: 0.82rem;
+  color: #5a8a50;
+}
+.insights-group {
+  margin-bottom: 0.9rem;
+}
+.insights-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4a7a40;
+  margin-bottom: 0.45rem;
+}
+.insights-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ichip {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 3px 11px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+.ichip-empty  { background: rgba(62,207,142,0.08);  color: #3ecf8e; border-color: rgba(62,207,142,0.2); }
+.ichip-text   { background: rgba(245,166,35,0.09);  color: #f5c842; border-color: rgba(245,166,35,0.22); }
+.ichip-space  { background: rgba(160,130,255,0.09); color: #c0a8ff; border-color: rgba(160,130,255,0.22); }
+.ichip-dot    { background: rgba(255,150,80,0.09);  color: #ffaa60; border-color: rgba(255,150,80,0.22); }
+.insights-footer {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #1a3016;
+  font-size: 0.82rem;
+  color: #4a7a40;
+  line-height: 1.65;
+}
+.insights-footer strong { color: #8ecf7a; }
+.no-blanks-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--green);
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -548,30 +623,6 @@ td:not(:first-child) { text-align: center; }
 
   <!-- Progress -->
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-
-  <!-- Notice -->
-  <div class="notice">
-    <div class="notice-head">⚠ Blank Value Detection</div>
-    <div class="notice-chips">
-      <span class="chip">empty cell</span>
-      <span class="chip">" " space</span>
-      <span class="chip">N/A</span>
-      <span class="chip">NA</span>
-      <span class="chip">Not Available</span>
-      <span class="chip">None</span>
-      <span class="chip">Null</span>
-      <span class="chip">-</span>
-      <span class="chip">_</span>
-      <span class="chip">. dot</span>
-    </div>
-    <div class="notice-sub">
-      <strong>Heads up:</strong> values like <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">NA</code>,
-      <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">N/A</code>,
-      a lone <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">-</code>,
-      a single space, or a bare <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">.</code>
-      typed as text will all be counted as blank.
-    </div>
-  </div>
 
   <!-- Step 1: Upload -->
   <div class="step-row">
@@ -649,6 +700,22 @@ td:not(:first-child) { text-align: center; }
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Dynamic Blank Insights — shown after analysis -->
+  <div id="blank-insights" style="display:none">
+    <div class="divider"></div>
+    <div class="insights-card">
+      <div class="insights-header">
+        <span class="insights-icon">🔍</span>
+        <div>
+          <div class="insights-title">Blank Value Insights — <span id="insights-sheet-name"></span></div>
+          <div class="insights-sub">The following values were found in this sheet and counted as blank</div>
+        </div>
+      </div>
+      <div id="insights-body"></div>
+      <div class="insights-footer" id="insights-footer"></div>
     </div>
   </div>
 
@@ -764,6 +831,7 @@ sheetSelect.addEventListener('change', () => {
   computeProfile();
   renderMetrics();
   renderTable(profileRows);
+  renderBlankInsights(sheetSelect.value);
   progress.style.width = '100%';
   metricsSection.style.display = 'block';
   tableSection.style.display   = 'block';
@@ -908,6 +976,131 @@ function exportExcel(outName) {
 
   XLSX.utils.book_append_sheet(wb, ws, 'Profile Report');
   XLSX.writeFile(wb, outName);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DYNAMIC BLANK INSIGHTS
+══════════════════════════════════════════════════════════════ */
+function renderBlankInsights(sheetName) {
+  const insightsEl  = document.getElementById('blank-insights');
+  const bodyEl      = document.getElementById('insights-body');
+  const footerEl    = document.getElementById('insights-footer');
+  const sheetNameEl = document.getElementById('insights-sheet-name');
+
+  sheetNameEl.textContent = `"${sheetName}"`;
+  bodyEl.innerHTML  = '';
+  footerEl.innerHTML = '';
+
+  // Collect every raw value that was classified as blank
+  const foundEmpty   = false; // true empty cells always exist if blanks > 0
+  const textPatterns = new Set();   // na, n/a, none, null, not available, --, _
+  const spaceValues  = new Set();   // values that are purely whitespace
+  const dotValues    = new Set();   // lone dot(s)
+  let   hasEmpty     = false;
+
+  // Scan all raw values across all columns
+  currentData.forEach(row => {
+    Object.values(row).forEach(val => {
+      if (val === null || val === undefined) { hasEmpty = true; return; }
+      const raw = String(val);
+      const s   = raw.trim();
+
+      if (s === '')                            { hasEmpty = true; }
+      else if (/^\s+$/.test(raw))             { spaceValues.add(JSON.stringify(raw).replace(/"/g,'')); }  // pure spaces
+      else if (/^\.*$/.test(s) && s.length >= 1 && /^\.+$/.test(s)) { dotValues.add(s); }
+      else if (/^n\/?a$/i.test(s))            { textPatterns.add(s.toUpperCase().replace('NA','N/A').replace(/^NA$/,'NA')); }
+      else if (/^na$/i.test(s))               { textPatterns.add('NA'); }
+      else if (/^not\s+available$/i.test(s))  { textPatterns.add('Not Available'); }
+      else if (/^none$/i.test(s))             { textPatterns.add('None'); }
+      else if (/^null$/i.test(s))             { textPatterns.add('Null'); }
+      else if (/^-+$/.test(s))               { textPatterns.add(s); }
+      else if (/^_+$/.test(s))               { textPatterns.add(s); }
+      else if (s.toLowerCase() === 'nan')     { textPatterns.add('NaN'); }
+    });
+  });
+
+  // Re-scan more carefully: for NA vs N/A distinguish
+  const naFound   = new Set();
+  currentData.forEach(row => {
+    Object.values(row).forEach(val => {
+      if (!val) return;
+      const s = String(val).trim();
+      if (/^n\/a$/i.test(s))  naFound.add('N/A');
+      if (/^na$/i.test(s))    naFound.add('NA');
+    });
+  });
+  // merge naFound back
+  naFound.forEach(v => textPatterns.add(v));
+  // clean up duplicates from first pass
+  textPatterns.delete('N/A'.toUpperCase().replace('NA','N/A'));
+
+  const totalBlanks = profileRows.reduce((s, r) => s + r.blanks, 0);
+
+  if (totalBlanks === 0) {
+    insightsEl.style.display = 'block';
+    bodyEl.innerHTML = `<div class="no-blanks-msg">✅ &nbsp;No blank values were found in this sheet — all fields are fully populated.</div>`;
+    return;
+  }
+
+  insightsEl.style.display = 'block';
+
+  // Build grouped chips
+  const groups = [];
+
+  if (hasEmpty) {
+    groups.push({
+      label: 'Empty / Missing Cells',
+      chips: [{ label: 'empty cell', cls: 'ichip-empty' }]
+    });
+  }
+
+  if (spaceValues.size > 0) {
+    groups.push({
+      label: 'Whitespace-only Values (look filled but aren\'t)',
+      chips: [
+        { label: 'single space " "', cls: 'ichip-space' },
+        ...(spaceValues.size > 1 ? [{ label: `+ ${spaceValues.size - 1} other space variant(s)`, cls: 'ichip-space' }] : [])
+      ]
+    });
+  }
+
+  if (textPatterns.size > 0) {
+    groups.push({
+      label: 'Text Placeholders Found in Data',
+      chips: [...textPatterns].sort().map(v => ({ label: v, cls: 'ichip-text' }))
+    });
+  }
+
+  if (dotValues.size > 0) {
+    groups.push({
+      label: 'Dot / Period Placeholders',
+      chips: [...dotValues].map(v => ({ label: v === '.' ? '. (lone dot)' : v, cls: 'ichip-dot' }))
+    });
+  }
+
+  groups.forEach(g => {
+    const div = document.createElement('div');
+    div.className = 'insights-group';
+    div.innerHTML = `
+      <div class="insights-group-label">${g.label}</div>
+      <div class="insights-chips">
+        ${g.chips.map(c => `<span class="ichip ${c.cls}">${escHtml(c.label)}</span>`).join('')}
+      </div>`;
+    bodyEl.appendChild(div);
+  });
+
+  // Build footer summary sentence
+  const parts = [];
+  if (hasEmpty)             parts.push('empty cells');
+  if (spaceValues.size > 0) parts.push('whitespace-only strings (e.g. spaces that look like data)');
+  if (textPatterns.size > 0) parts.push([...textPatterns].join(', '));
+  if (dotValues.size > 0)   parts.push('dot placeholders (' + [...dotValues].join(', ') + ')');
+
+  const colsAffected = profileRows.filter(r => r.blanks > 0).length;
+  footerEl.innerHTML =
+    `In this sheet <strong>"${escHtml(sheetName)}"</strong>, blank values include: <strong>${parts.join(' · ')}</strong>. ` +
+    `These were found across <strong>${colsAffected} column${colsAffected !== 1 ? 's' : ''}</strong> and ` +
+    `account for <strong>${totalBlanks.toLocaleString()} blank cell${totalBlanks !== 1 ? 's' : ''}</strong> in total.`;
 }
 
 /* ══════════════════════════════════════════════════════════════
