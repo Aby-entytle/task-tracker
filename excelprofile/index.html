@@ -400,6 +400,11 @@ td:not(:first-child) { text-align: center; }
   color: var(--accent);
   border: 1px solid rgba(79,158,255,0.2);
 }
+.badge-total {
+  background: rgba(160,160,255,0.1);
+  color: #a0a8ff;
+  border: 1px solid rgba(160,160,255,0.2);
+}
 .badge-blank-zero {
   background: rgba(62,207,142,0.1);
   color: var(--green);
@@ -409,6 +414,11 @@ td:not(:first-child) { text-align: center; }
   background: rgba(245,166,35,0.1);
   color: var(--warn);
   border: 1px solid rgba(245,166,35,0.2);
+}
+.badge-pct-high {
+  background: rgba(255,92,92,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(255,92,92,0.25);
 }
 .values-pill {
   font-family: var(--font-mono);
@@ -630,8 +640,10 @@ td:not(:first-child) { text-align: center; }
         <thead>
           <tr>
             <th>Field Name</th>
+            <th>Total Records</th>
             <th>No. of Distinct Values</th>
             <th>Blank Values</th>
+            <th>% of Blank Values</th>
             <th>Distinct Value List (≤ 3)</th>
           </tr>
         </thead>
@@ -774,11 +786,15 @@ function computeProfile() {
     const distinctSet = new Set(nonBlank.map(v => String(v).trim()));
     const distinctCount = distinctSet.size;
     const distinctArr   = [...distinctSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const total         = currentData.length;
+    const blankPct      = total > 0 ? ((blankCount / total) * 100).toFixed(1) : '0.0';
 
     return {
       field:    col,
+      total:    total,
       distinct: distinctCount,
       blanks:   blankCount,
+      blankPct: blankPct,
       lowCard:  distinctCount <= 3 ? distinctArr : null,
     };
   });
@@ -808,20 +824,30 @@ function renderTable(rows) {
     const tr = document.createElement('tr');
     if (r.lowCard) tr.classList.add('low-card');
 
-    // field name
+    // col 1 — field name
     const tdField = document.createElement('td');
     tdField.innerHTML = `<span class="field-name">${escHtml(r.field)}</span>`;
 
-    // distinct
+    // col 2 — total records
+    const tdTotal = document.createElement('td');
+    tdTotal.innerHTML = `<span class="count-badge badge-total">${r.total.toLocaleString()}</span>`;
+
+    // col 3 — distinct
     const tdDist = document.createElement('td');
     tdDist.innerHTML = `<span class="count-badge badge-distinct">${r.distinct}</span>`;
 
-    // blanks
+    // col 4 — blanks
     const tdBlank = document.createElement('td');
     const badgeCls = r.blanks === 0 ? 'badge-blank-zero' : 'badge-blank-some';
     tdBlank.innerHTML = `<span class="count-badge ${badgeCls}">${r.blanks}</span>`;
 
-    // low card values
+    // col 5 — % blank
+    const tdPct = document.createElement('td');
+    const pctNum = parseFloat(r.blankPct);
+    const pctCls = pctNum === 0 ? 'badge-blank-zero' : pctNum >= 50 ? 'badge-pct-high' : 'badge-blank-some';
+    tdPct.innerHTML = `<span class="count-badge ${pctCls}">${r.blankPct}%</span>`;
+
+    // col 6 — low card values
     const tdVals = document.createElement('td');
     if (r.lowCard) {
       const display = r.lowCard.map(v => escHtml(v)).join(',  ');
@@ -830,7 +856,7 @@ function renderTable(rows) {
       tdVals.innerHTML = `<span class="dash">—</span>`;
     }
 
-    tr.append(tdField, tdDist, tdBlank, tdVals);
+    tr.append(tdField, tdTotal, tdDist, tdBlank, tdPct, tdVals);
     tableBody.appendChild(tr);
   });
 }
@@ -855,17 +881,19 @@ function updateDlInfo() {
 }
 
 function exportExcel(outName) {
-  const wb  = XLSX.utils.book_new();
+  const wb    = XLSX.utils.book_new();
   const total = currentData.length;
 
-  /* Build AOA (array-of-arrays) */
+  /* Build AOA */
   const aoa = [
-    [`Total Records: ${total}`, '', '', ''],
-    ['Field Name', 'No. of Distinct Values', 'Blank Values', 'Distinct Value List (if ≤ 3 distinct)'],
+    [`Total Records: ${total}`, '', '', '', '', ''],
+    ['Field Name', 'Total Records', 'No. of Distinct Values', 'Blank Values', '% of Blank Values', 'Distinct Value List (if ≤ 3 distinct)'],
     ...profileRows.map(r => [
       r.field,
+      r.total,
       r.distinct,
       r.blanks,
+      r.blankPct + '%',
       r.lowCard ? r.lowCard.join(', ') : '—'
     ])
   ];
@@ -873,10 +901,10 @@ function exportExcel(outName) {
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 
   /* Column widths */
-  ws['!cols'] = [{ wch: 32 }, { wch: 24 }, { wch: 18 }, { wch: 48 }];
+  ws['!cols'] = [{ wch: 32 }, { wch: 16 }, { wch: 24 }, { wch: 16 }, { wch: 20 }, { wch: 48 }];
 
-  /* Merge banner row across 4 cols */
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+  /* Merge banner row across 6 cols */
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
 
   XLSX.utils.book_append_sheet(wb, ws, 'Profile Report');
   XLSX.writeFile(wb, outName);
