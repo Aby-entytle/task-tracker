@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Excel Data Profiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Mulish:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ── reset & tokens ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #06080d;
+  --surface:   #0e1117;
+  --card:      #131720;
+  --border:    #1e2535;
+  --border2:   #2a3347;
+  --text:      #e8edf5;
+  --muted:     #5c6882;
+  --subtle:    #8a94aa;
+  --accent:    #4f9eff;
+  --accent2:   #00d4aa;
+  --warn:      #f5a623;
+  --danger:    #ff5c5c;
+  --green:     #3ecf8e;
+  --font-head: 'Syne', sans-serif;
+  --font-body: 'Mulish', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius:    12px;
+  --shadow:    0 4px 24px rgba(0,0,0,0.45);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* ── layout ── */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1.5rem 5rem;
+}
+
+/* ── hero ────────────────────────────────────────────────────────────────── */
+.hero {
+  padding: 4rem 0 3rem;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(79,158,255,0.08);
+  border: 1px solid rgba(79,158,255,0.2);
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: 1.4rem;
+}
+.hero-tag::before { content: '◆'; font-size: 0.5rem; }
+
+.hero h1 {
+  font-family: var(--font-head);
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 30%, #7ab4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+.hero p {
+  font-size: 1.05rem;
+  color: var(--subtle);
+  line-height: 1.7;
+  max-width: 520px;
+  font-weight: 300;
+}
+
+/* ── notice box ──────────────────────────────────────────────────────────── */
+.notice {
+  background: linear-gradient(135deg, #1a1200 0%, #130d00 100%);
+  border: 1px solid #3d2e00;
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.5rem;
+  margin-bottom: 2rem;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.notice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--warn);
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+.notice-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 0.75rem;
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: rgba(245,166,35,0.1);
+  border: 1px solid rgba(245,166,35,0.25);
+  color: #f5c842;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+.notice-sub {
+  font-size: 0.82rem;
+  color: #8a7040;
+  line-height: 1.6;
+}
+.notice-sub strong { color: var(--warn); }
+
+/* ── steps ───────────────────────────────────────────────────────────────── */
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.65rem;
+}
+.step-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.step-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── drop zone ───────────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  animation: fadeUp 0.6s 0.2s ease both;
+  margin-bottom: 1.8rem;
+}
+.drop-zone:hover,
+.drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(79,158,255,0.04);
+  box-shadow: 0 0 0 4px rgba(79,158,255,0.06);
+}
+.drop-icon {
+  font-size: 2.8rem;
+  margin-bottom: 0.8rem;
+  filter: grayscale(0.3);
+}
+.drop-zone h3 {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+.drop-zone p {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.drop-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.9rem;
+  background: rgba(79,158,255,0.1);
+  border: 1px solid rgba(79,158,255,0.25);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 5px 14px;
+  border-radius: 8px;
+}
+
+/* ── sheet selector ──────────────────────────────────────────────────────── */
+#sheet-section {
+  display: none;
+  animation: fadeUp 0.4s ease both;
+  margin-bottom: 1.8rem;
+}
+.select-wrap {
+  position: relative;
+  max-width: 380px;
+}
+.select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  pointer-events: none;
+  font-size: 0.85rem;
+}
+select {
+  width: 100%;
+  appearance: none;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 9px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.65rem 2.2rem 0.65rem 1rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+select:focus { border-color: var(--accent); }
+
+/* ── metrics ─────────────────────────────────────────────────────────────── */
+#metrics-section {
+  display: none;
+  animation: fadeUp 0.4s ease both;
+}
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+@media(max-width:700px){ .metrics-grid{ grid-template-columns: repeat(2,1fr); } }
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.metric-card:hover { transform: translateY(-2px); border-color: var(--border2); }
+.metric-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+}
+.metric-card.blue::after  { background: var(--accent); }
+.metric-card.green::after { background: var(--green); }
+.metric-card.warn::after  { background: var(--warn); }
+.metric-card.dim::after   { background: var(--border2); }
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+.metric-card.blue  .metric-val { color: var(--accent); }
+.metric-card.green .metric-val { color: var(--green); }
+.metric-card.warn  .metric-val { color: var(--warn); }
+.metric-card.dim   .metric-val { color: var(--subtle); }
+.metric-lbl {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── table section ───────────────────────────────────────────────────────── */
+#table-section {
+  display: none;
+  animation: fadeUp 0.4s ease both;
+}
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.section-title {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.table-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+thead tr {
+  background: linear-gradient(90deg, #0d1420 0%, #0a1018 100%);
+}
+thead th {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+thead th:not(:first-child) { text-align: center; }
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.025); }
+tbody tr.low-card { background: rgba(62,207,142,0.04); }
+tbody tr.low-card:hover { background: rgba(62,207,142,0.07); }
+td {
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  vertical-align: middle;
+}
+td:not(:first-child) { text-align: center; }
+.field-name {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: #a8c8ff;
+  font-weight: 500;
+}
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 2px 10px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.badge-distinct {
+  background: rgba(79,158,255,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(79,158,255,0.2);
+}
+.badge-blank-zero {
+  background: rgba(62,207,142,0.1);
+  color: var(--green);
+  border: 1px solid rgba(62,207,142,0.2);
+}
+.badge-blank-some {
+  background: rgba(245,166,35,0.1);
+  color: var(--warn);
+  border: 1px solid rgba(245,166,35,0.2);
+}
+.values-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--green);
+  background: rgba(62,207,142,0.08);
+  border: 1px solid rgba(62,207,142,0.18);
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash { color: var(--muted); font-family: var(--font-mono); }
+
+/* ── download button ─────────────────────────────────────────────────────── */
+#dl-section {
+  display: none;
+  margin-top: 2rem;
+  animation: fadeUp 0.4s ease both;
+}
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #1a6640, #217a4d);
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(33,122,77,0.35);
+  transition: all 0.22s ease;
+  letter-spacing: 0.01em;
+}
+.btn-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(33,122,77,0.5);
+}
+.btn-download:active { transform: translateY(0); }
+.dl-info {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+/* ── divider ── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2rem 0;
+}
+
+/* ── footer ── */
+.footer {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  letter-spacing: 0.04em;
+}
+.footer a { color: var(--accent); text-decoration: none; }
+
+/* ── animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── search filter ── */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  gap: 7px;
+}
+.search-box input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  width: 180px;
+}
+.search-box input::placeholder { color: var(--muted); }
+.search-icon { color: var(--muted); font-size: 0.85rem; }
+
+/* ── progress bar ── */
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-tag">Data Quality Tool</div>
+    <h1>Excel Data Profiler</h1>
+    <p>Upload any Excel workbook, pick a sheet, and get an instant field-level data quality report — distinct values, blanks, and low-cardinality summaries.</p>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+  <!-- Notice -->
+  <div class="notice">
+    <div class="notice-head">⚠ Blank Value Detection</div>
+    <div class="notice-chips">
+      <span class="chip">empty cell</span>
+      <span class="chip">" " space</span>
+      <span class="chip">N/A</span>
+      <span class="chip">NA</span>
+      <span class="chip">Not Available</span>
+      <span class="chip">None</span>
+      <span class="chip">Null</span>
+      <span class="chip">-</span>
+      <span class="chip">_</span>
+      <span class="chip">. dot</span>
+    </div>
+    <div class="notice-sub">
+      <strong>Heads up:</strong> values like <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">NA</code>,
+      <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">N/A</code>,
+      a lone <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">-</code>,
+      a single space, or a bare <code style="font-family:var(--font-mono);background:rgba(245,166,35,0.12);color:#f5c842;padding:1px 5px;border-radius:4px">.</code>
+      typed as text will all be counted as blank.
+    </div>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <div class="step-row">
+    <div class="step-num">1</div>
+    <div class="step-label">Upload Excel File</div>
+  </div>
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls"/>
+    <div class="drop-icon">📂</div>
+    <h3>Drop your Excel file here</h3>
+    <p>or click to browse &nbsp;·&nbsp; supports .xlsx, .xlsm, .xls</p>
+    <div id="fileBadge" style="display:none" class="file-badge">📄 <span id="fileName"></span></div>
+  </div>
+
+  <!-- Step 2: Sheet -->
+  <div id="sheet-section">
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-label">Select Sheet</div>
+    </div>
+    <div class="select-wrap">
+      <select id="sheetSelect"></select>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Metrics -->
+  <div id="metrics-section">
+    <div class="metrics-grid">
+      <div class="metric-card blue">
+        <div class="metric-val" id="m-total">—</div>
+        <div class="metric-lbl">Total Records</div>
+      </div>
+      <div class="metric-card dim">
+        <div class="metric-val" id="m-cols">—</div>
+        <div class="metric-lbl">Columns</div>
+      </div>
+      <div class="metric-card warn">
+        <div class="metric-val" id="m-blank-cols">—</div>
+        <div class="metric-lbl">Cols with Blanks</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-val" id="m-pct">—</div>
+        <div class="metric-lbl">Cols Fully Populated</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div id="table-section">
+    <div class="table-header">
+      <div>
+        <div class="step-row" style="margin-bottom:0">
+          <div class="step-num">3</div>
+          <div class="step-label">Field Profile</div>
+        </div>
+      </div>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Filter fields…"/>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Field Name</th>
+            <th>No. of Distinct Values</th>
+            <th>Blank Values</th>
+            <th>Distinct Value List (≤ 3)</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Download -->
+  <div id="dl-section">
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-label">Download Report</div>
+    </div>
+    <button class="btn-download" id="dlBtn">
+      ⬇ Download Excel Report
+    </button>
+    <div class="dl-info" id="dlInfo"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Excel Data Profiler &nbsp;·&nbsp;
+    <a href="https://github.com/Aby-entytle/task-tracker" target="_blank">github.com/Aby-entytle/task-tracker</a>
+    &nbsp;·&nbsp; No data leaves your browser
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   BLANK DETECTION
+══════════════════════════════════════════════════════════════ */
+const BLANK_RE = /^\s*$|^n\/?a$|^not\s+available$|^none$|^null$|^-$|^_+$|^\.$|^na$/i;
+
+function isBlank(val) {
+  if (val === null || val === undefined) return true;
+  const s = String(val).trim();
+  if (s === '' || s.toLowerCase() === 'nan') return true;
+  return BLANK_RE.test(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let workbook    = null;
+let currentData = [];   // array of row-objects for active sheet
+let profileRows = [];   // computed profile
+let fileName    = '';
+
+/* ══════════════════════════════════════════════════════════════
+   DOM REFS
+══════════════════════════════════════════════════════════════ */
+const fileInput     = document.getElementById('fileInput');
+const dropZone      = document.getElementById('dropZone');
+const fileBadge     = document.getElementById('fileBadge');
+const fileNameEl    = document.getElementById('fileName');
+const sheetSection  = document.getElementById('sheet-section');
+const sheetSelect   = document.getElementById('sheetSelect');
+const metricsSection= document.getElementById('metrics-section');
+const tableSection  = document.getElementById('table-section');
+const dlSection     = document.getElementById('dl-section');
+const tableBody     = document.getElementById('tableBody');
+const searchInput   = document.getElementById('searchInput');
+const dlBtn         = document.getElementById('dlBtn');
+const dlInfo        = document.getElementById('dlInfo');
+const progress      = document.getElementById('progress');
+
+/* ══════════════════════════════════════════════════════════════
+   FILE HANDLING
+══════════════════════════════════════════════════════════════ */
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function handleFile(file) {
+  if (!file) return;
+  fileName = file.name;
+  fileNameEl.textContent = fileName;
+  fileBadge.style.display = 'inline-flex';
+  progress.style.width = '25%';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    workbook = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+    populateSheets();
+    progress.style.width = '50%';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function populateSheets() {
+  sheetSelect.innerHTML = '';
+  workbook.SheetNames.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = name;
+    sheetSelect.appendChild(opt);
+  });
+  sheetSection.style.display = 'block';
+  sheetSelect.dispatchEvent(new Event('change'));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHEET CHANGE → PROFILE
+══════════════════════════════════════════════════════════════ */
+sheetSelect.addEventListener('change', () => {
+  const ws = workbook.Sheets[sheetSelect.value];
+  // Read all as strings so blank detection works uniformly
+  const raw = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+  currentData = raw;
+  computeProfile();
+  renderMetrics();
+  renderTable(profileRows);
+  progress.style.width = '100%';
+  metricsSection.style.display = 'block';
+  tableSection.style.display   = 'block';
+  dlSection.style.display      = 'block';
+  updateDlInfo();
+});
+
+/* ══════════════════════════════════════════════════════════════
+   PROFILE COMPUTATION
+══════════════════════════════════════════════════════════════ */
+function computeProfile() {
+  if (!currentData.length) { profileRows = []; return; }
+  const columns = Object.keys(currentData[0]);
+
+  profileRows = columns.map(col => {
+    const vals        = currentData.map(r => r[col] ?? '');
+    const blankMask   = vals.map(isBlank);
+    const blankCount  = blankMask.filter(Boolean).length;
+    const nonBlank    = vals.filter((_, i) => !blankMask[i]);
+    const distinctSet = new Set(nonBlank.map(v => String(v).trim()));
+    const distinctCount = distinctSet.size;
+    const distinctArr   = [...distinctSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    return {
+      field:    col,
+      distinct: distinctCount,
+      blanks:   blankCount,
+      lowCard:  distinctCount <= 3 ? distinctArr : null,
+    };
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   METRICS
+══════════════════════════════════════════════════════════════ */
+function renderMetrics() {
+  const total     = currentData.length;
+  const cols      = profileRows.length;
+  const blankCols = profileRows.filter(r => r.blanks > 0).length;
+  const pct       = cols ? Math.round(((cols - blankCols) / cols) * 100) : 0;
+
+  document.getElementById('m-total').textContent      = total.toLocaleString();
+  document.getElementById('m-cols').textContent       = cols;
+  document.getElementById('m-blank-cols').textContent = blankCols;
+  document.getElementById('m-pct').textContent        = pct + '%';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TABLE RENDER
+══════════════════════════════════════════════════════════════ */
+function renderTable(rows) {
+  tableBody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.lowCard) tr.classList.add('low-card');
+
+    // field name
+    const tdField = document.createElement('td');
+    tdField.innerHTML = `<span class="field-name">${escHtml(r.field)}</span>`;
+
+    // distinct
+    const tdDist = document.createElement('td');
+    tdDist.innerHTML = `<span class="count-badge badge-distinct">${r.distinct}</span>`;
+
+    // blanks
+    const tdBlank = document.createElement('td');
+    const badgeCls = r.blanks === 0 ? 'badge-blank-zero' : 'badge-blank-some';
+    tdBlank.innerHTML = `<span class="count-badge ${badgeCls}">${r.blanks}</span>`;
+
+    // low card values
+    const tdVals = document.createElement('td');
+    if (r.lowCard) {
+      const display = r.lowCard.map(v => escHtml(v)).join(',  ');
+      tdVals.innerHTML = `<span class="values-pill" title="${display}">${display}</span>`;
+    } else {
+      tdVals.innerHTML = `<span class="dash">—</span>`;
+    }
+
+    tr.append(tdField, tdDist, tdBlank, tdVals);
+    tableBody.appendChild(tr);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEARCH FILTER
+══════════════════════════════════════════════════════════════ */
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase();
+  const filtered = q ? profileRows.filter(r => r.field.toLowerCase().includes(q)) : profileRows;
+  renderTable(filtered);
+});
+
+/* ══════════════════════════════════════════════════════════════
+   EXCEL EXPORT
+══════════════════════════════════════════════════════════════ */
+function updateDlInfo() {
+  const sheet   = sheetSelect.value || '';
+  const outName = fileName.replace(/\.[^.]+$/, '') + '_' + sheet.replace(/\s+/g, '_') + '_profile.xlsx';
+  dlInfo.textContent = 'Saves as: ' + outName;
+  dlBtn.onclick = () => exportExcel(outName);
+}
+
+function exportExcel(outName) {
+  const wb  = XLSX.utils.book_new();
+  const total = currentData.length;
+
+  /* Build AOA (array-of-arrays) */
+  const aoa = [
+    [`Total Records: ${total}`, '', '', ''],
+    ['Field Name', 'No. of Distinct Values', 'Blank Values', 'Distinct Value List (if ≤ 3 distinct)'],
+    ...profileRows.map(r => [
+      r.field,
+      r.distinct,
+      r.blanks,
+      r.lowCard ? r.lowCard.join(', ') : '—'
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  /* Column widths */
+  ws['!cols'] = [{ wch: 32 }, { wch: 24 }, { wch: 18 }, { wch: 48 }];
+
+  /* Merge banner row across 4 cols */
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Profile Report');
+  XLSX.writeFile(wb, outName);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
