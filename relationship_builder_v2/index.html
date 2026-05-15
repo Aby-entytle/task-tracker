@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Relationship Analyzer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeece8;
+  --text: #1a1a18; --text2: #5c5b57; --text3: #9c9a92;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+  --info-bg: #e6f1fb; --info-text: #185fa5; --info-border: rgba(24,95,165,0.25);
+  --warn-bg: #faeeda; --warn-text: #854f0b; --warn-border: rgba(133,79,11,0.25);
+  --success-bg: #eaf3de; --success-text: #3b6d11;
+  --danger-bg: #fcebeb; --danger-text: #a32d2d;
+  --radius-md: 8px; --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1c; --bg2: #27271f; --bg3: #2f2f26;
+    --text: #e8e6de; --text2: #a8a69e; --text3: #6e6c66;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+    --info-bg: #0c3354; --info-text: #85b7eb; --info-border: rgba(133,183,235,0.2);
+    --warn-bg: #412402; --warn-text: #f5c87a; --warn-border: rgba(245,200,122,0.2);
+    --success-bg: #173404; --success-text: #97c459;
+    --danger-bg: #501313; --danger-text: #f09595;
+  }
+}
+html, body { min-height: 100vh; background: var(--bg3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text); }
+body { padding: 1.5rem; }
+.app { max-width: 1180px; margin: 0 auto; }
+
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 22px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+.page-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.page-header i.logo { font-size: 26px; color: var(--info-text); }
+
+.card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+.card-title { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .75rem; }
+
+/* Upload */
+.upload-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.add-files-btn { display: flex; align-items: center; gap: 7px; padding: 8px 16px; border: 1.5px dashed var(--border2); border-radius: var(--radius-md); background: transparent; color: var(--text2); font-size: 13px; cursor: pointer; transition: all .2s; white-space: nowrap; position: relative; }
+.add-files-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.add-files-btn:hover { border-color: var(--info-text); color: var(--info-text); background: var(--info-bg); }
+.add-files-btn i { font-size: 16px; pointer-events: none; }
+.drop-hint { font-size: 12px; color: var(--text3); }
+
+body.dragging-over::after {
+  content: 'Drop files anywhere to add';
+  position: fixed; inset: 16px;
+  background: rgba(24,95,165,0.1);
+  border: 2px dashed var(--info-text);
+  border-radius: 16px; z-index: 9998;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: var(--info-text); font-weight: 500;
+  pointer-events: none;
+}
+
+/* File table */
+.file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.file-table th { text-align: left; font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; padding: 6px 10px; border-bottom: 0.5px solid var(--border); }
+.file-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+.file-table tr:last-child td { border-bottom: none; }
+.file-table tr:hover td { background: var(--bg2); }
+.file-name-cell { display: flex; align-items: center; gap: 8px; font-weight: 500; max-width: 220px; }
+.file-name-cell i { font-size: 15px; color: var(--info-text); flex-shrink: 0; }
+.file-name-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.sheet-tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 3px; font-size: 11px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); }
+.sheet-tag.active { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); font-weight: 500; }
+.edit-sheets-btn { font-size: 11px; color: var(--info-text); background: none; border: 0.5px solid var(--info-border); border-radius: 3px; padding: 3px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.edit-sheets-btn:hover { background: var(--info-bg); }
+.status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 9px; border-radius: 3px; white-space: nowrap; }
+.status-badge.ready { background: var(--success-bg); color: var(--success-text); }
+.status-badge.pending { background: var(--warn-bg); color: var(--warn-text); }
+.status-badge.isnew { background: var(--info-bg); color: var(--info-text); }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.icon-btn { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; display: flex; align-items: center; padding: 3px; border-radius: 4px; }
+.icon-btn:hover { color: var(--danger-text); background: var(--danger-bg); }
+.notice { padding: 1rem; font-size: 13px; color: var(--text2); }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border2); width: 540px; max-width: 95vw; max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.modal-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.modal-header h2 { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.modal-header h2 i { font-size: 18px; color: var(--info-text); }
+.modal-close { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 20px; display: flex; align-items: center; padding: 2px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1; }
+.modal-file-label { font-size: 13px; color: var(--text2); margin-bottom: .75rem; display: flex; align-items: center; gap: 6px; }
+.sheet-picker-list { display: flex; flex-direction: column; gap: 6px; }
+.sheet-picker-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0.5px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: border-color .15s, background .15s; }
+.sheet-picker-item:hover { border-color: var(--info-border); background: var(--info-bg); }
+.sheet-picker-item.selected { border-color: var(--info-text); background: var(--info-bg); }
+.sheet-picker-item input[type=checkbox] { accent-color: var(--info-text); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.sheet-info { flex: 1; min-width: 0; }
+.sheet-info .sname { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-info .smeta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.sheet-preview { font-size: 11px; color: var(--text3); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; flex-shrink: 0; }
+.modal-footer { padding: .75rem 1.25rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.modal-footer-actions { display: flex; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: var(--radius-md); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--text); transition: opacity .15s, background .15s; }
+.btn:hover { background: var(--bg2); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: transparent; }
+.btn.primary:hover { opacity: .85; }
+.select-all-btn { font-size: 12px; color: var(--info-text); background: none; border: none; cursor: pointer; padding: 0; }
+.select-all-btn:hover { text-decoration: underline; }
+
+/* Options */
+.options-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: .75rem; }
+.option-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 0.5px solid var(--border2); border-radius: 20px; cursor: pointer; font-size: 12px; transition: all .2s; user-select: none; }
+.option-pill input { display: none; }
+.option-pill.checked { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+.option-pill i { font-size: 14px; }
+.threshold-row { display: flex; align-items: center; gap: 10px; margin-bottom: .6rem; font-size: 13px; }
+.threshold-row label { color: var(--text2); min-width: 200px; }
+.threshold-row input[type=range] { flex: 1; }
+.threshold-row span { min-width: 40px; text-align: right; font-weight: 500; }
+
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: .75rem; }
+.primary-btn { display: flex; align-items: center; gap: 8px; padding: 9px 20px; border: 0.5px solid transparent; border-radius: var(--radius-md); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 500; cursor: pointer; }
+.primary-btn:disabled { opacity: .4; cursor: not-allowed; }
+.primary-btn:not(:disabled):hover { opacity: .8; }
+.secondary-btn { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border: 0.5px solid var(--border2); border-radius: var(--radius-md); background: transparent; color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; }
+.secondary-btn:hover { background: var(--bg2); }
+.reanalyze-btn { border-color: var(--info-border); color: var(--info-text); background: var(--info-bg); }
+.reanalyze-btn:hover { opacity: .85; }
+.progress-wrap { flex: 1; min-width: 120px; }
+.progress-bar { height: 4px; background: var(--bg2); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--info-text); border-radius: 2px; transition: width .4s; }
+#status-msg { font-size: 12px; color: var(--text2); min-height: 16px; margin-top: 4px; }
+
+/* Summary */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.metric { background: var(--bg2); border-radius: var(--radius-md); padding: .75rem 1rem; }
+.metric-label { font-size: 11px; color: var(--text2); margin-bottom: .25rem; }
+.metric-value { font-size: 24px; font-weight: 500; }
+.metric-value.good { color: var(--success-text); }
+.metric-value.warn { color: var(--warn-text); }
+.metric-value.info { color: var(--info-text); }
+
+/* Map */
+#canvas-wrap { position: relative; overflow: auto; border: 0.5px solid var(--border); border-radius: var(--radius-lg); background: var(--bg2); min-height: 320px; }
+#rel-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+#table-host { position: relative; min-height: 320px; }
+.table-card { position: absolute; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); width: 210px; cursor: grab; user-select: none; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transition: box-shadow .2s; }
+.table-card:active { cursor: grabbing; box-shadow: 0 4px 16px rgba(0,0,0,0.14); }
+.table-card.newly-added { border-color: var(--info-text); box-shadow: 0 0 0 2px var(--info-border), 0 2px 8px rgba(0,0,0,0.07); }
+.table-header { border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 8px 12px; display: flex; align-items: flex-start; gap: 8px; border-bottom: 0.5px solid var(--border); }
+.table-header i { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.th-body { flex: 1; min-width: 0; }
+.th-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.th-sheet { font-size: 10px; opacity: .75; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Color themes for table headers */
+.color-blue  .table-header { background: #e6f1fb; border-bottom-color: rgba(24,95,165,.2); }
+.color-blue  .table-header i, .color-blue  .th-name, .color-blue  .th-sheet { color: #185fa5; }
+.color-teal  .table-header { background: #e1f5ee; border-bottom-color: rgba(15,110,86,.2); }
+.color-teal  .table-header i, .color-teal  .th-name, .color-teal  .th-sheet { color: #0f6e56; }
+.color-purple .table-header { background: #eeedfe; border-bottom-color: rgba(83,74,183,.2); }
+.color-purple .table-header i, .color-purple .th-name, .color-purple .th-sheet { color: #534ab7; }
+.color-coral .table-header { background: #faece7; border-bottom-color: rgba(153,60,29,.2); }
+.color-coral .table-header i, .color-coral .th-name, .color-coral .th-sheet { color: #993c1d; }
+.color-pink  .table-header { background: #fbeaf0; border-bottom-color: rgba(153,53,86,.2); }
+.color-pink  .table-header i, .color-pink  .th-name, .color-pink  .th-sheet { color: #993556; }
+@media (prefers-color-scheme: dark) {
+  .color-blue  .table-header { background: #0c3354; }
+  .color-blue  .table-header i, .color-blue  .th-name, .color-blue  .th-sheet { color: #85b7eb; }
+  .color-teal  .table-header { background: #04342c; }
+  .color-teal  .table-header i, .color-teal  .th-name, .color-teal  .th-sheet { color: #5dcaa5; }
+  .color-purple .table-header { background: #26215c; }
+  .color-purple .table-header i, .color-purple .th-name, .color-purple .th-sheet { color: #afa9ec; }
+  .color-coral .table-header { background: #4a1b0c; }
+  .color-coral .table-header i, .color-coral .th-name, .color-coral .th-sheet { color: #f0997b; }
+  .color-pink  .table-header { background: #4b1528; }
+  .color-pink  .table-header i, .color-pink  .th-name, .color-pink  .th-sheet { color: #ed93b1; }
+}
+.field-row { padding: 5px 12px; font-size: 12px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 6px; }
+.field-row:last-child { border-bottom: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.field-row.linked { background: rgba(245,200,122,0.08); font-weight: 500; }
+.field-row .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.fk-badge { font-size: 9px; padding: 1px 5px; background: var(--warn-bg); color: var(--warn-text); border-radius: 3px; border: 0.5px solid var(--warn-border); flex-shrink: 0; }
+
+/* Rel detail table */
+.rel-detail { border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.rel-row { display: grid; grid-template-columns: 1fr 28px 1fr 100px; align-items: center; padding: 7px 12px; font-size: 12px; border-bottom: 0.5px solid var(--border); gap: 6px; }
+.rel-row:last-child { border-bottom: none; }
+.rel-row.header { background: var(--bg2); font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+.rel-row .arrow-mid { text-align: center; color: var(--text3); }
+.tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+.tag.exact { background: var(--success-bg); color: var(--success-text); border: 0.5px solid rgba(59,109,17,.2); }
+.tag.fuzzy { background: var(--warn-bg); color: var(--warn-text); border: 0.5px solid var(--warn-border); }
+.tag.isnew { background: var(--info-bg); color: var(--info-text); border: 0.5px solid var(--info-border); margin-left: 3px; }
+
+/* Legend */
+.legend { display: flex; gap: 1.5rem; font-size: 12px; color: var(--text2); margin-top: .5rem; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-line { width: 28px; height: 0; border-top: 2px dashed; }
+.legend-line.green { border-color: #10b981; }
+.legend-line.amber { border-color: #f59e0b; }
+.legend-line.blue { border-color: #378add; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page-header">
+    <h1><i class="ti ti-topology-ring-3 logo"></i> Excel Relationship Analyzer</h1>
+    <p>Upload Excel or CSV files &mdash; each file or selected sheet becomes a table. Add more files at any time to extend the map without losing existing results.</p>
+  </div>
+
+  <!-- Files card -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+      <div class="card-title" style="margin:0">files &amp; sheets</div>
+      <div class="upload-strip">
+        <label class="add-files-btn">
+          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple>
+          <i class="ti ti-plus"></i> Add files
+        </label>
+        <span class="drop-hint">or drag files anywhere on this page</span>
+      </div>
+    </div>
+    <div class="notice" id="empty-notice">No files added yet. Click <strong>Add files</strong> or drop .xlsx / .xls / .csv files onto the page.</div>
+    <table class="file-table" id="file-table" style="display:none">
+      <thead><tr>
+        <th style="width:28%">File</th>
+        <th>Sheets selected as tables</th>
+        <th style="width:90px;text-align:center">Status</th>
+        <th style="width:48px"></th>
+      </tr></thead>
+      <tbody id="file-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Options card -->
+  <div class="card">
+    <div class="card-title">matching strategies</div>
+    <div class="options-row" id="strategy-options">
+      <label class="option-pill checked"><input type="checkbox" value="exact" checked><i class="ti ti-equal"></i>Exact match</label>
+      <label class="option-pill checked"><input type="checkbox" value="trim_zeros" checked><i class="ti ti-number-0"></i>Trim leading zeros</label>
+      <label class="option-pill checked"><input type="checkbox" value="no_hyphens" checked><i class="ti ti-minus"></i>Remove hyphens</label>
+      <label class="option-pill checked"><input type="checkbox" value="lowercase" checked><i class="ti ti-letter-case"></i>Case-insensitive</label>
+      <label class="option-pill"><input type="checkbox" value="trim_spaces"><i class="ti ti-space"></i>Trim spaces</label>
+      <label class="option-pill"><input type="checkbox" value="no_underscores"><i class="ti ti-line"></i>Remove underscores</label>
+    </div>
+    <div class="card-title" style="margin-top:.25rem">thresholds</div>
+    <div class="threshold-row">
+      <label>Min match ratio</label>
+      <input type="range" id="thresh-ratio" min="10" max="90" value="30" step="5">
+      <span id="thresh-ratio-out">30%</span>
+    </div>
+    <div class="threshold-row">
+      <label>Min unique values per field</label>
+      <input type="range" id="thresh-uniq" min="2" max="20" value="2" step="1">
+      <span id="thresh-uniq-out">2</span>
+    </div>
+    <div class="toolbar">
+      <button class="primary-btn" id="analyze-btn" disabled><i class="ti ti-search"></i>Analyze relationships</button>
+      <button class="secondary-btn reanalyze-btn" id="reanalyze-btn" style="display:none"><i class="ti ti-refresh"></i>Re-analyze with new tables</button>
+      <button class="secondary-btn" id="clear-btn" style="display:none"><i class="ti ti-trash"></i>Clear all</button>
+      <div class="progress-wrap" id="prog-wrap" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div id="status-msg"></div>
+      </div>
+      <span id="status-idle" style="font-size:12px;color:var(--text2)"></span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" style="display:none">
+    <div class="card">
+      <div class="card-title">summary</div>
+      <div class="summary-grid" id="summary-cards"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+        <div class="card-title" style="margin:0">relationship map</div>
+        <span style="font-size:11px;color:var(--text3)">drag tables to rearrange</span>
+      </div>
+      <div id="canvas-wrap">
+        <svg id="rel-canvas"></svg>
+        <div id="table-host"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line green"></div> Strong match (&ge;70%)</div>
+        <div class="legend-item"><div class="legend-line amber"></div> Fuzzy match</div>
+        <div class="legend-item"><div class="legend-line blue"></div> Newly discovered</div>
+        <div class="legend-item"><i class="ti ti-git-branch" style="font-size:13px;color:var(--warn-text)"></i> FK-linked field</div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+        <div class="card-title" style="margin:0">relationship details</div>
+        <span id="new-rel-badge" style="display:none;font-size:11px;padding:2px 9px;background:var(--info-bg);color:var(--info-text);border-radius:3px;border:0.5px solid var(--info-border)"></span>
+      </div>
+      <div class="rel-detail" id="rel-table">
+        <div class="rel-row header"><div>source field</div><div></div><div>target field</div><div>match</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sheet Picker Modal -->
+<div class="modal-overlay" id="sheet-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="ti ti-layout-grid"></i> Select sheets to import</h2>
+      <button class="modal-close" id="modal-close-btn"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-file-label" id="modal-file-label"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+        <span style="font-size:12px;color:var(--text2)">Each checked sheet becomes a separate table.</span>
+        <button class="select-all-btn" id="select-all-btn">Select all</button>
+      </div>
+      <div class="sheet-picker-list" id="sheet-picker-list"></div>
+    </div>
+    <div class="modal-footer">
+      <span id="modal-sel-count" style="font-size:12px;color:var(--text2)"></span>
+      <div class="modal-footer-actions">
+        <button class="btn" id="modal-cancel-btn">Cancel</button>
+        <button class="btn primary" id="modal-confirm-btn"><i class="ti ti-check"></i>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const fileEntries = [];     // { id, file, fileName, workbook, sheetNames, selectedSheets }
+const tableData   = {};     // tableKey → { headers, data, fileId, sheetName, fileName }
+let relationships  = [];
+let tableCards     = {};    // tableKey → DOM card
+let prevTableKeys  = new Set();
+let hasResults     = false;
+
+const TABLE_COLORS = ['color-blue','color-teal','color-purple','color-coral','color-pink'];
+const fileColorMap = {};    // fileId → color class
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fileInput      = $('file-input');
+const fileTbody      = $('file-tbody');
+const fileTableEl    = $('file-table');
+const emptyNotice    = $('empty-notice');
+const analyzeBtn     = $('analyze-btn');
+const reanalyzeBtn   = $('reanalyze-btn');
+const clearBtn       = $('clear-btn');
+const resultsEl      = $('results');
+const summaryCards   = $('summary-cards');
+const tableHost      = $('table-host');
+const relCanvas      = $('rel-canvas');
+const relTable       = $('rel-table');
+const progWrap       = $('prog-wrap');
+const progFill       = $('prog-fill');
+const statusMsg      = $('status-msg');
+const statusIdle     = $('status-idle');
+const stratOpts      = $('strategy-options');
+const threshRatio    = $('thresh-ratio');
+const threshUniq     = $('thresh-uniq');
+const sheetModal     = $('sheet-modal');
+const modalFileLabel = $('modal-file-label');
+const pickerList     = $('sheet-picker-list');
+const modalSelCount  = $('modal-sel-count');
+const selectAllBtn   = $('select-all-btn');
+const newRelBadge    = $('new-rel-badge');
+
+// ── Sliders ───────────────────────────────────────────────────────────────────
+threshRatio.addEventListener('input', () => { $('thresh-ratio-out').textContent = threshRatio.value + '%'; });
+threshUniq.addEventListener('input',  () => { $('thresh-uniq-out').textContent  = threshUniq.value; });
+
+// ── Strategy pills ────────────────────────────────────────────────────────────
+stratOpts.querySelectorAll('.option-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    const cb = pill.querySelector('input');
+    cb.checked = !cb.checked;
+    pill.classList.toggle('checked', cb.checked);
+  });
+});
+
+// ── Global drag-and-drop ──────────────────────────────────────────────────────
+let dragN = 0;
+document.addEventListener('dragenter', e => { if ([...e.dataTransfer.types].includes('Files')) { dragN++; document.body.classList.add('dragging-over'); } });
+document.addEventListener('dragleave', () => { if (--dragN <= 0) { dragN = 0; document.body.classList.remove('dragging-over'); } });
+document.addEventListener('dragover',  e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault(); dragN = 0; document.body.classList.remove('dragging-over');
+  if (e.dataTransfer.files.length) handleNewFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => { handleNewFiles(e.target.files); fileInput.value = ''; });
+
+// ── Clear ─────────────────────────────────────────────────────────────────────
+clearBtn.addEventListener('click', () => {
+  fileEntries.length = 0;
+  Object.keys(tableData).forEach(k => delete tableData[k]);
+  Object.keys(fileColorMap).forEach(k => delete fileColorMap[k]);
+  relationships = []; tableCards = {}; prevTableKeys = new Set(); hasResults = false;
+  tableHost.innerHTML = ''; relCanvas.innerHTML = '';
+  renderFileTable(); updateButtons();
+  resultsEl.style.display = 'none';
+  reanalyzeBtn.style.display = 'none';
+  clearBtn.style.display = 'none';
+  statusIdle.textContent = '';
+});
+
+// ── File handling ─────────────────────────────────────────────────────────────
+async function handleNewFiles(fileList) {
+  const files = Array.from(fileList).filter(f => /\.(xlsx|xls|csv)$/i.test(f.name));
+  if (!files.length) return;
+  for (const f of files) {
+    if (fileEntries.find(e => e.fileName === f.name)) {
+      statusIdle.textContent = `"${f.name}" already loaded.`; continue;
+    }
+    statusIdle.textContent = `Reading ${f.name}…`;
+    try {
+      const wb = await readWorkbook(f);
+      const id = 'f' + Date.now() + Math.random().toString(36).slice(2,7);
+      fileColorMap[id] = TABLE_COLORS[Object.keys(fileColorMap).length % TABLE_COLORS.length];
+      const entry = { id, file: f, fileName: f.name, workbook: wb, sheetNames: wb.SheetNames, selectedSheets: [...wb.SheetNames] };
+      fileEntries.push(entry);
+      if (wb.SheetNames.length > 1) {
+        await openSheetPicker(entry, true);
+      } else {
+        await finalizeEntry(entry);
+        renderFileTable();
+        updateButtons();
+      }
+    } catch(err) {
+      statusIdle.textContent = `Error: ${err.message}`;
+    }
+  }
+  statusIdle.textContent = '';
+}
+
+function readWorkbook(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try { res(XLSX.read(new Uint8Array(e.target.result), { type: 'array' })); }
+      catch(err) { rej(err); }
+    };
+    reader.onerror = () => rej(new Error('Could not read ' + file.name));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function finalizeEntry(entry) {
+  // Clear old data for this file
+  Object.keys(tableData).forEach(k => { if (tableData[k].fileId === entry.id) delete tableData[k]; });
+  // Parse selected sheets
+  entry.selectedSheets.forEach(sName => {
+    const sheet = entry.workbook.Sheets[sName];
+    if (!sheet) return;
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const key  = makeKey(entry.fileName, sName);
+    if (rows.length < 2) { tableData[key] = { headers: [], data: [], fileId: entry.id, sheetName: sName, fileName: entry.fileName }; return; }
+    const headers = rows[0].map(h => String(h).trim()).filter(Boolean);
+    const data    = rows.slice(1).filter(r => r.some(c => c !== ''));
+    tableData[key] = { headers, data, fileId: entry.id, sheetName: sName, fileName: entry.fileName };
+  });
+}
+
+function makeKey(fileName, sheetName) { return `${fileName}::${sheetName}`; }
+
+// ── Sheet picker ──────────────────────────────────────────────────────────────
+let _modalResolve = null;
+function openSheetPicker(entry, isNew = false) {
+  return new Promise(resolve => {
+    _modalResolve = resolve;
+    modalFileLabel.innerHTML = `<i class="ti ti-file-spreadsheet" style="color:var(--info-text)"></i><strong>${h(entry.fileName)}</strong> &mdash; ${entry.sheetNames.length} sheets found`;
+    pickerList.innerHTML = '';
+
+    entry.sheetNames.forEach(sName => {
+      const sheet   = entry.workbook.Sheets[sName];
+      const rows    = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) : [];
+      const rowCount = Math.max(0, rows.length - 1);
+      const colCount = rows[0] ? rows[0].filter(Boolean).length : 0;
+      const preview  = rows[0] ? rows[0].filter(Boolean).slice(0, 5).join(', ') : '';
+      const checked  = entry.selectedSheets.includes(sName);
+
+      const item = document.createElement('label');
+      item.className = 'sheet-picker-item' + (checked ? ' selected' : '');
+      item.innerHTML = `
+        <input type="checkbox" ${checked ? 'checked' : ''} value="${a(sName)}">
+        <i class="ti ti-table" style="font-size:20px;color:var(--info-text);flex-shrink:0"></i>
+        <div class="sheet-info">
+          <div class="sname">${h(sName)}</div>
+          <div class="smeta">${rowCount.toLocaleString()} rows &middot; ${colCount} columns</div>
+        </div>
+        <div class="sheet-preview" title="${a(preview)}">${h(preview)}</div>
+      `;
+      item.querySelector('input').addEventListener('change', cb => {
+        item.classList.toggle('selected', cb.target.checked);
+        updateModalCount();
+      });
+      pickerList.appendChild(item);
+    });
+
+    updateModalCount();
+    sheetModal.classList.add('open');
+
+    $('modal-confirm-btn').onclick = async () => {
+      const sel = [...pickerList.querySelectorAll('input:checked')].map(cb => cb.value);
+      if (!sel.length) { alert('Select at least one sheet.'); return; }
+      entry.selectedSheets = sel;
+      await finalizeEntry(entry);
+      sheetModal.classList.remove('open');
+      renderFileTable(); updateButtons();
+      if (_modalResolve) { _modalResolve(); _modalResolve = null; }
+    };
+
+    const cancel = () => {
+      sheetModal.classList.remove('open');
+      if (isNew && !Object.keys(tableData).some(k => tableData[k].fileId === entry.id)) {
+        const idx = fileEntries.indexOf(entry);
+        if (idx > -1) fileEntries.splice(idx, 1);
+      }
+      renderFileTable(); updateButtons();
+      if (_modalResolve) { _modalResolve(); _modalResolve = null; }
+    };
+    $('modal-close-btn').onclick = cancel;
+    $('modal-cancel-btn').onclick = cancel;
+    sheetModal.onclick = e => { if (e.target === sheetModal) cancel(); };
+  });
+}
+
+function updateModalCount() {
+  const checked = pickerList.querySelectorAll('input:checked').length;
+  const total   = pickerList.querySelectorAll('input').length;
+  modalSelCount.textContent = `${checked} of ${total} selected`;
+  selectAllBtn.textContent  = checked === total ? 'Deselect all' : 'Select all';
+}
+selectAllBtn.addEventListener('click', () => {
+  const all = [...pickerList.querySelectorAll('input')];
+  const allOn = all.every(cb => cb.checked);
+  all.forEach(cb => { cb.checked = !allOn; cb.closest('.sheet-picker-item').classList.toggle('selected', !allOn); });
+  updateModalCount();
+});
+
+// ── File table render ─────────────────────────────────────────────────────────
+function renderFileTable() {
+  emptyNotice.style.display = fileEntries.length ? 'none' : 'block';
+  fileTableEl.style.display = fileEntries.length ? 'table' : 'none';
+  fileTbody.innerHTML = '';
+
+  fileEntries.forEach(entry => {
+    const myKeys   = Object.keys(tableData).filter(k => tableData[k].fileId === entry.id);
+    const inResult = myKeys.some(k => prevTableKeys.has(k));
+    const isNew    = hasResults && myKeys.some(k => !prevTableKeys.has(k));
+
+    const statusHtml = myKeys.length === 0
+      ? `<span class="status-badge pending"><i class="ti ti-alert-circle" style="font-size:12px"></i> No data</span>`
+      : isNew
+      ? `<span class="status-badge isnew"><i class="ti ti-sparkles" style="font-size:12px"></i> New</span>`
+      : inResult
+      ? `<span class="status-badge ready"><i class="ti ti-check" style="font-size:12px"></i> Analyzed</span>`
+      : `<span class="status-badge pending"><i class="ti ti-clock" style="font-size:12px"></i> Pending</span>`;
+
+    const sheetTagsHtml = entry.sheetNames.map(s => {
+      const active = entry.selectedSheets.includes(s);
+      return `<span class="sheet-tag ${active ? 'active' : ''}">${active ? '<i class="ti ti-check" style="font-size:10px"></i> ' : ''}${h(s)}</span>`;
+    }).join('');
+
+    const editBtn = entry.sheetNames.length > 1
+      ? `<button class="edit-sheets-btn" onclick="editSheets('${entry.id}')"><i class="ti ti-edit" style="font-size:11px"></i> Edit sheets</button>`
+      : '';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="file-name-cell"><i class="ti ti-file-spreadsheet"></i><span title="${a(entry.fileName)}">${h(entry.fileName)}</span></div></td>
+      <td><div class="sheet-tags">${sheetTagsHtml}${editBtn}</div></td>
+      <td style="text-align:center">${statusHtml}</td>
+      <td><div class="row-actions"><button class="icon-btn" title="Remove" onclick="removeFile('${entry.id}')"><i class="ti ti-trash"></i></button></div></td>
+    `;
+    fileTbody.appendChild(tr);
+  });
+}
+
+window.editSheets = async (fileId) => {
+  const entry = fileEntries.find(e => e.id === fileId);
+  if (!entry) return;
+  await openSheetPicker(entry, false);
+  if (hasResults) updateReanalyzeVisibility();
+};
+
+window.removeFile = (fileId) => {
+  const idx = fileEntries.findIndex(e => e.id === fileId);
+  if (idx > -1) fileEntries.splice(idx, 1);
+  delete fileColorMap[fileId];
+  Object.keys(tableData).forEach(k => { if (tableData[k].fileId === fileId) delete tableData[k]; });
+  // Remove cards for this file
+  Object.keys(tableCards).forEach(k => {
+    if (!tableData[k]) { tableCards[k].remove(); delete tableCards[k]; }
+  });
+  if (hasResults) {
+    relationships = relationships.filter(r => tableData[r.tableA] && tableData[r.tableB]);
+    prevTableKeys = new Set([...prevTableKeys].filter(k => tableData[k]));
+    updateSummary(); drawRelationships(); renderRelTable(); updateReanalyzeVisibility();
+  }
+  renderFileTable(); updateButtons();
+};
+
+// ── Button state ──────────────────────────────────────────────────────────────
+function updateButtons() {
+  analyzeBtn.disabled = Object.keys(tableData).length < 2;
+  updateReanalyzeVisibility();
+}
+function updateReanalyzeVisibility() {
+  const allKeys = new Set(Object.keys(tableData));
+  const hasNew  = [...allKeys].some(k => !prevTableKeys.has(k));
+  const hadLost = [...prevTableKeys].some(k => !allKeys.has(k));
+  reanalyzeBtn.style.display = (hasResults && (hasNew || hadLost) && allKeys.size >= 2) ? 'flex' : 'none';
+}
+
+analyzeBtn.addEventListener('click',   () => runAnalysis());
+reanalyzeBtn.addEventListener('click', () => runAnalysis());
+
+// ── Core analysis ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  analyzeBtn.disabled = true;
+  reanalyzeBtn.style.display = 'none';
+  progWrap.style.display = 'block';
+  statusIdle.textContent = '';
+  setProgress(0, 'Analyzing…');
+
+  const strats   = getStrategies();
+  const MIN_RATIO = parseInt(threshRatio.value) / 100;
+  const MIN_UNIQ  = parseInt(threshUniq.value);
+  const tableKeys = Object.keys(tableData);
+  const prevRels  = hasResults ? [...relationships] : [];
+
+  await sleep(30);
+
+  const found = [];
+  const total = (tableKeys.length * (tableKeys.length - 1)) / 2;
+  let done = 0;
+
+  for (let ai = 0; ai < tableKeys.length; ai++) {
+    for (let bi = ai + 1; bi < tableKeys.length; bi++) {
+      const ka = tableKeys[ai], kb = tableKeys[bi];
+      const ta = tableData[ka], tb = tableData[kb];
+      if (!ta.headers.length || !tb.headers.length) { done++; continue; }
+
+      for (let ci = 0; ci < ta.headers.length; ci++) {
+        const ha   = ta.headers[ci];
+        const setA = new Set(ta.data.map(r => norm(r[ci], strats)).filter(Boolean));
+        if (setA.size < MIN_UNIQ) continue;
+
+        for (let cj = 0; cj < tb.headers.length; cj++) {
+          const hb   = tb.headers[cj];
+          const setB = new Set(tb.data.map(r => norm(r[cj], strats)).filter(Boolean));
+          if (setB.size < MIN_UNIQ) continue;
+
+          const smaller = setA.size <= setB.size ? setA : setB;
+          const larger  = setA.size <= setB.size ? setB : setA;
+          let matched = 0;
+          smaller.forEach(v => { if (larger.has(v)) matched++; });
+          const ratio = matched / Math.max(smaller.size, 1);
+
+          if (ratio >= MIN_RATIO) {
+            const wasFound = prevRels.some(r =>
+              (r.tableA === ka && r.fieldA === ha && r.tableB === kb && r.fieldB === hb) ||
+              (r.tableA === kb && r.fieldA === hb && r.tableB === ka && r.fieldB === ha)
+            );
+            found.push({ tableA: ka, fieldA: ha, tableB: kb, fieldB: hb,
+              matched, totalA: setA.size, totalB: setB.size,
+              ratio, matchType: ratio >= 0.7 ? 'exact' : 'fuzzy',
+              isNew: hasResults && !wasFound });
+          }
+        }
+      }
+      done++;
+      if (done % 3 === 0) setProgress(10 + Math.round((done / total) * 75), 'Finding relationships…');
+    }
+  }
+
+  // Deduplicate — keep highest ratio per pair
+  found.sort((a,b) => b.ratio - a.ratio);
+  const seen = new Set();
+  relationships = found.filter(r => {
+    const k1 = `${r.tableA}|${r.fieldA}|${r.tableB}|${r.fieldB}`;
+    const k2 = `${r.tableB}|${r.fieldB}|${r.tableA}|${r.fieldA}`;
+    if (seen.has(k1) || seen.has(k2)) return false;
+    seen.add(k1); return true;
+  });
+
+  prevTableKeys = new Set(tableKeys);
+  hasResults = true;
+
+  setProgress(92, 'Rendering…');
+  await sleep(20);
+  renderResults(tableKeys);
+  setProgress(100, '');
+
+  setTimeout(() => {
+    progWrap.style.display = 'none';
+    const newCount = relationships.filter(r => r.isNew).length;
+    statusIdle.textContent = `${relationships.length} relationship${relationships.length !== 1 ? 's' : ''} found${newCount ? ` (${newCount} new)` : ''}.`;
+    analyzeBtn.disabled = false;
+    clearBtn.style.display = 'flex';
+    updateReanalyzeVisibility();
+    renderFileTable();
+  }, 400);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderResults(tableKeys) {
+  updateSummary();
+
+  const linkedFields = new Set();
+  relationships.forEach(r => {
+    linkedFields.add(`${r.tableA}|${r.fieldA}`);
+    linkedFields.add(`${r.tableB}|${r.fieldB}`);
+  });
+
+  // Place new cards; keep existing ones
+  const existing = new Set(Object.keys(tableCards));
+  const newKeys  = tableKeys.filter(k => !existing.has(k));
+
+  // Find right edge of existing cards for new card placement
+  let startX = 24, startY = 24;
+  if (existing.size > 0) {
+    let maxRight = 0;
+    Object.values(tableCards).forEach(c => { maxRight = Math.max(maxRight, c.offsetLeft + c.offsetWidth + 24); });
+    startX = maxRight;
+  }
+
+  newKeys.forEach((key, idx) => {
+    const td    = tableData[key];
+    const color = fileColorMap[td.fileId] || 'color-blue';
+    const isMultiSheet = fileEntries.find(e => e.id === td.fileId)?.selectedSheets.length > 1;
+    const shortName = td.fileName.replace(/\.(xlsx|xls|csv)$/i, '');
+    const col = idx % 3, row = Math.floor(idx / 3);
+
+    const card = document.createElement('div');
+    card.className = `table-card ${color} newly-added`;
+    card.style.cssText = `left:${startX + col * 234}px;top:${startY + row * 40}px`;
+    card.dataset.tableKey = key;
+
+    const fieldRows = td.headers.map(fh => {
+      const isLinked = linkedFields.has(`${key}|${fh}`);
+      return `<div class="field-row${isLinked ? ' linked' : ''}" data-field="${a(fh)}" data-key="${a(key)}">
+        <i class="ti ti-${isLinked ? 'git-branch' : 'minus'}" style="font-size:11px;color:${isLinked ? 'var(--warn-text)' : 'var(--text3)'}"></i>
+        <span class="fname" title="${a(fh)}">${h(fh)}</span>
+        ${isLinked ? '<span class="fk-badge">FK</span>' : ''}
+      </div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="table-header">
+        <i class="ti ti-table"></i>
+        <div class="th-body">
+          <div class="th-name" title="${a(shortName)}">${h(shortName)}</div>
+          ${isMultiSheet ? `<div class="th-sheet" title="${a(td.sheetName)}">${h(td.sheetName)}</div>` : ''}
+        </div>
+      </div>
+      ${fieldRows}`;
+    makeDraggable(card);
+    tableHost.appendChild(card);
+    tableCards[key] = card;
+    setTimeout(() => card.classList.remove('newly-added'), 2500);
+  });
+
+  // Refresh FK badges on old cards
+  existing.forEach(key => {
+    const card = tableCards[key];
+    if (!card || !tableData[key]) return;
+    card.querySelectorAll('.field-row').forEach(row => {
+      const fh = row.dataset.field;
+      const on = linkedFields.has(`${key}|${fh}`);
+      row.classList.toggle('linked', on);
+      const icon = row.querySelector('i');
+      if (icon) { icon.className = `ti ti-${on ? 'git-branch' : 'minus'}`; icon.style.color = on ? 'var(--warn-text)' : 'var(--text3)'; }
+      let badge = row.querySelector('.fk-badge');
+      if (on && !badge) { badge = document.createElement('span'); badge.className = 'fk-badge'; badge.textContent = 'FK'; row.appendChild(badge); }
+      else if (!on && badge) badge.remove();
+    });
+  });
+
+  setTimeout(() => { resizeCanvas(); drawRelationships(); }, 80);
+  renderRelTable();
+  resultsEl.style.display = 'block';
+  clearBtn.style.display = 'flex';
+}
+
+function updateSummary() {
+  const keys = Object.keys(tableData);
+  const totalFields = keys.reduce((s,k) => s + tableData[k].headers.length, 0);
+  const totalRows   = keys.reduce((s,k) => s + tableData[k].data.length, 0);
+  const strong = relationships.filter(r => r.ratio >= 0.7).length;
+  const newRels = relationships.filter(r => r.isNew).length;
+  summaryCards.innerHTML = `
+    <div class="metric"><div class="metric-label">Tables</div><div class="metric-value">${keys.length}</div></div>
+    <div class="metric"><div class="metric-label">Total fields</div><div class="metric-value">${totalFields}</div></div>
+    <div class="metric"><div class="metric-label">Total rows</div><div class="metric-value">${totalRows.toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">Relationships</div><div class="metric-value ${relationships.length ? 'good' : 'warn'}">${relationships.length}</div></div>
+    <div class="metric"><div class="metric-label">Strong (&ge;70%)</div><div class="metric-value good">${strong}</div></div>
+    ${newRels ? `<div class="metric"><div class="metric-label">Newly found</div><div class="metric-value info">${newRels}</div></div>` : ''}
+  `;
+}
+
+function renderRelTable() {
+  while (relTable.children.length > 1) relTable.removeChild(relTable.lastChild);
+  const newRels = relationships.filter(r => r.isNew).length;
+  newRelBadge.textContent = newRels ? `${newRels} new relationship${newRels > 1 ? 's' : ''} found` : '';
+  newRelBadge.style.display = newRels ? 'inline-block' : 'none';
+
+  if (!relationships.length) {
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.textContent = 'No relationships found. Try lowering the minimum match ratio, enabling more strategies, or adding more files.';
+    relTable.appendChild(n); return;
+  }
+
+  relationships.forEach(r => {
+    const pct = Math.round(r.ratio * 100);
+    const la  = fmtLabel(r.tableA), lb = fmtLabel(r.tableB);
+    const row = document.createElement('div');
+    row.className = 'rel-row';
+    row.innerHTML = `
+      <div title="${a(r.tableA + '.' + r.fieldA)}"><strong>${h(la)}</strong> &middot; ${h(r.fieldA)}</div>
+      <div class="arrow-mid">&#8596;</div>
+      <div title="${a(r.tableB + '.' + r.fieldB)}"><strong>${h(lb)}</strong> &middot; ${h(r.fieldB)}</div>
+      <div>
+        <span class="tag ${r.matchType}">${pct}%</span>
+        ${r.isNew ? '<span class="tag isnew">new</span>' : ''}
+      </div>`;
+    relTable.appendChild(row);
+  });
+}
+
+function fmtLabel(tableKey) {
+  const td = tableData[tableKey];
+  if (!td) return tableKey;
+  const short = td.fileName.replace(/\.(xlsx|xls|csv)$/i, '');
+  const entry = fileEntries.find(e => e.id === td.fileId);
+  return (entry && entry.selectedSheets.length > 1) ? `${short} › ${td.sheetName}` : short;
+}
+
+// ── Canvas & SVG ──────────────────────────────────────────────────────────────
+function resizeCanvas() {
+  let mx = 0, my = 0;
+  Object.values(tableCards).forEach(c => {
+    mx = Math.max(mx, c.offsetLeft + c.offsetWidth + 24);
+    my = Math.max(my, c.offsetTop + c.offsetHeight + 24);
+  });
+  const wrap = $('canvas-wrap');
+  const w = Math.max(mx, wrap.clientWidth), h = Math.max(my, 320);
+  tableHost.style.minWidth = w + 'px'; tableHost.style.minHeight = h + 'px';
+  relCanvas.setAttribute('width', w); relCanvas.setAttribute('height', h);
+  relCanvas.style.width = w + 'px';   relCanvas.style.height = h + 'px';
+}
+
+function getAnchor(tableKey, field) {
+  const card = tableCards[tableKey]; if (!card) return null;
+  const sel  = `[data-field="${field.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"]`;
+  const el   = card.querySelector(sel); if (!el) return null;
+  const hostRect = tableHost.getBoundingClientRect();
+  const elRect   = el.getBoundingClientRect();
+  const wrap     = $('canvas-wrap');
+  const y = elRect.top - hostRect.top + elRect.height / 2 + wrap.scrollTop;
+  return { y, leftX: card.offsetLeft, rightX: card.offsetLeft + card.offsetWidth, cx: card.offsetLeft + card.offsetWidth / 2 };
+}
+
+function drawRelationships() {
+  relCanvas.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const defs = document.createElementNS(ns, 'defs');
+  [['gd','#10b981'],['ad','#f59e0b'],['bd','#378add']].forEach(([id, fill]) => {
+    const m = document.createElementNS(ns, 'marker');
+    m.setAttribute('id', id); m.setAttribute('viewBox','0 0 6 6');
+    m.setAttribute('refX','3'); m.setAttribute('refY','3');
+    m.setAttribute('markerWidth','5'); m.setAttribute('markerHeight','5');
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx','3'); c.setAttribute('cy','3'); c.setAttribute('r','2.5'); c.setAttribute('fill', fill);
+    m.appendChild(c); defs.appendChild(m);
+  });
+  relCanvas.appendChild(defs);
+
+  relationships.forEach(r => {
+    const a1 = getAnchor(r.tableA, r.fieldA), a2 = getAnchor(r.tableB, r.fieldB);
+    if (!a1 || !a2) return;
+
+    const color = r.isNew ? '#378add' : r.matchType === 'exact' ? '#10b981' : '#f59e0b';
+    const dot   = r.isNew ? 'bd' : r.matchType === 'exact' ? 'gd' : 'ad';
+    const dash  = r.matchType === 'exact' ? '7 3' : '4 4';
+    const left  = a1.cx < a2.cx;
+    const x1 = left ? a1.rightX : a1.leftX, x2 = left ? a2.leftX : a2.rightX;
+    const y1 = a1.y, y2 = a2.y, mx = (x1 + x2) / 2;
+
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+    path.setAttribute('fill','none'); path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width','1.5'); path.setAttribute('stroke-dasharray', dash);
+    path.setAttribute('opacity','0.8');
+    path.setAttribute('marker-start',`url(#${dot})`); path.setAttribute('marker-end',`url(#${dot})`);
+    relCanvas.appendChild(path);
+
+    const midY = (y1 + y2) / 2, pct = Math.round(r.ratio * 100);
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('x', mx-16); bg.setAttribute('y', midY-9);
+    bg.setAttribute('width','32'); bg.setAttribute('height','16'); bg.setAttribute('rx','4');
+    bg.setAttribute('fill', r.isNew ? '#e6f1fb' : r.matchType === 'exact' ? '#eaf3de' : '#faeeda');
+    bg.setAttribute('stroke', color); bg.setAttribute('stroke-width','0.5');
+    relCanvas.appendChild(bg);
+
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', mx); txt.setAttribute('y', midY+1);
+    txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','central');
+    txt.setAttribute('font-size','10'); txt.setAttribute('font-weight','600');
+    txt.setAttribute('fill', r.isNew ? '#185fa5' : r.matchType === 'exact' ? '#3b6d11' : '#854f0b');
+    txt.setAttribute('font-family','-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif');
+    txt.textContent = pct + '%';
+    relCanvas.appendChild(txt);
+  });
+}
+
+function makeDraggable(el) {
+  let sx, sy, ox, oy;
+  el.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop;
+    el.style.zIndex = '10';
+    const move = ev => {
+      el.style.left = Math.max(0, ox + ev.clientX - sx) + 'px';
+      el.style.top  = Math.max(0, oy + ev.clientY - sy) + 'px';
+      resizeCanvas(); drawRelationships();
+    };
+    const up = () => { el.style.zIndex = ''; document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+    e.preventDefault();
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getStrategies() {
+  const s = {};
+  stratOpts.querySelectorAll('input').forEach(cb => { s[cb.value] = cb.checked; });
+  return s;
+}
+function norm(val, strats) {
+  let s = String(val == null ? '' : val).trim();
+  if (strats.lowercase)      s = s.toLowerCase();
+  if (strats.trim_zeros)     s = s.replace(/^0+(?=\d)/, '');
+  if (strats.no_hyphens)     s = s.replace(/-/g, '');
+  if (strats.trim_spaces)    s = s.replace(/\s+/g, '');
+  if (strats.no_underscores) s = s.replace(/_/g, '');
+  return s;
+}
+function setProgress(pct, msg) { progFill.style.width = pct + '%'; if (msg !== undefined) statusMsg.textContent = msg; }
+function sleep(ms)  { return new Promise(r => setTimeout(r, ms)); }
+function h(s)       { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function a(s)       { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+</script>
+</body>
+</html>
