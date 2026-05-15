@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Relationship Analyzer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeece8;
+    --text: #1a1a18;
+    --text2: #5c5b57;
+    --text3: #9c9a92;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --info-bg: #e6f1fb;
+    --info-text: #185fa5;
+    --info-border: rgba(24,95,165,0.25);
+    --warn-bg: #faeeda;
+    --warn-text: #854f0b;
+    --warn-border: rgba(133,79,11,0.25);
+    --success-bg: #eaf3de;
+    --success-text: #3b6d11;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg2: #27271f;
+      --bg3: #2f2f26;
+      --text: #e8e6de;
+      --text2: #a8a69e;
+      --text3: #6e6c66;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --info-bg: #0c3354;
+      --info-text: #85b7eb;
+      --info-border: rgba(133,183,235,0.2);
+      --warn-bg: #412402;
+      --warn-text: #f5c87a;
+      --warn-border: rgba(245,200,122,0.2);
+      --success-bg: #173404;
+      --success-text: #97c459;
+    }
+  }
+  html, body { min-height: 100vh; background: var(--bg3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text); }
+  body { padding: 1.5rem; }
+
+  .app { max-width: 1100px; margin: 0 auto; }
+
+  .page-header { margin-bottom: 1.5rem; }
+  .page-header h1 { font-size: 22px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+  .page-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+  .page-header i { font-size: 26px; color: var(--info-text); }
+
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+
+  .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 2.5rem 2rem; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--info-text); background: var(--info-bg); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone i { font-size: 36px; color: var(--text3); margin-bottom: .5rem; display: block; }
+  .upload-zone strong { font-size: 15px; font-weight: 500; }
+  .upload-zone p { color: var(--text2); font-size: 13px; margin-top: .25rem; }
+
+  .file-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  .chip { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 5px 10px; font-size: 12px; }
+  .chip i { font-size: 14px; color: var(--text2); }
+  .chip button { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 0; line-height: 1; margin-left: 2px; display: flex; align-items: center; }
+  .chip button:hover { color: #e24b4a; }
+
+  .section-title { font-size: 11px; font-weight: 500; color: var(--text2); margin: 1rem 0 .5rem; text-transform: uppercase; letter-spacing: .07em; }
+
+  .options-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
+  .option-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 0.5px solid var(--border2); border-radius: 20px; cursor: pointer; font-size: 12px; transition: border-color .2s, background .2s; user-select: none; }
+  .option-pill input { display: none; }
+  .option-pill.checked { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+  .option-pill i { font-size: 14px; }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: .5rem; }
+  #analyze-btn { display: flex; align-items: center; gap: 8px; padding: 9px 20px; border: 0.5px solid var(--border2); border-radius: var(--radius-md); background: var(--text); color: var(--bg); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .2s; }
+  #analyze-btn:disabled { opacity: .4; cursor: not-allowed; }
+  #analyze-btn:not(:disabled):hover { opacity: .8; }
+  #clear-btn { display: flex; align-items: center; gap: 6px; padding: 9px 16px; border: 0.5px solid var(--border); border-radius: var(--radius-md); background: transparent; color: var(--text2); font-size: 13px; cursor: pointer; }
+  #clear-btn:hover { background: var(--bg2); }
+
+  .progress-bar { height: 4px; background: var(--bg2); border-radius: 2px; overflow: hidden; flex: 1; }
+  .progress-fill { height: 100%; background: var(--info-text); border-radius: 2px; transition: width .4s; }
+  #status-msg { font-size: 12px; color: var(--text2); min-height: 16px; margin-top: 4px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: var(--bg2); border-radius: var(--radius-md); padding: .75rem 1rem; }
+  .metric-label { font-size: 11px; color: var(--text2); margin-bottom: .25rem; }
+  .metric-value { font-size: 24px; font-weight: 500; }
+  .metric-value.good { color: #3b6d11; }
+  .metric-value.warn { color: #854f0b; }
+  @media (prefers-color-scheme: dark) {
+    .metric-value.good { color: #97c459; }
+    .metric-value.warn { color: #f5c87a; }
+  }
+
+  #canvas-wrap { position: relative; overflow: auto; border: 0.5px solid var(--border); border-radius: var(--radius-lg); background: var(--bg2); min-height: 320px; }
+  #rel-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+  #table-host { position: relative; min-height: 320px; }
+
+  .table-card { position: absolute; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); min-width: 190px; cursor: grab; user-select: none; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .table-card:active { cursor: grabbing; box-shadow: 0 4px 16px rgba(0,0,0,0.13); }
+  .table-header { background: var(--info-bg); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 0.5px solid var(--info-border); }
+  .table-header i { font-size: 14px; color: var(--info-text); }
+  .table-header span { font-size: 12px; font-weight: 500; color: var(--info-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  .field-row { padding: 5px 12px; font-size: 12px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 6px; transition: background .15s; white-space: nowrap; }
+  .field-row:last-child { border-bottom: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+  .field-row.linked { background: rgba(245,200,122,0.08); font-weight: 500; }
+  .fk-badge { font-size: 9px; padding: 1px 5px; background: var(--warn-bg); color: var(--warn-text); border-radius: 3px; border: 0.5px solid var(--warn-border); flex-shrink: 0; }
+
+  .rel-detail { border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .rel-row { display: grid; grid-template-columns: 1fr 36px 1fr 72px; align-items: center; padding: 7px 12px; font-size: 12px; border-bottom: 0.5px solid var(--border); gap: 6px; }
+  .rel-row:last-child { border-bottom: none; }
+  .rel-row.header { background: var(--bg2); font-weight: 500; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
+  .rel-row .arrow-mid { text-align: center; color: var(--text3); font-size: 16px; }
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+  .tag.exact { background: var(--success-bg); color: var(--success-text); border: 0.5px solid rgba(59,109,17,0.2); }
+  .tag.fuzzy { background: var(--warn-bg); color: var(--warn-text); border: 0.5px solid var(--warn-border); }
+
+  .notice { padding: 1.5rem; text-align: center; font-size: 13px; color: var(--text2); }
+
+  /* Legend */
+  .legend { display: flex; gap: 1.5rem; font-size: 12px; color: var(--text2); margin-top: .5rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-line { width: 28px; height: 2px; border-top: 2px dashed; }
+  .legend-line.green { border-color: #10b981; }
+  .legend-line.amber { border-color: #f59e0b; }
+
+  .threshold-row { display: flex; align-items: center; gap: 10px; margin-bottom: .75rem; font-size: 13px; }
+  .threshold-row label { color: var(--text2); min-width: 160px; }
+  .threshold-row input[type=range] { flex: 1; }
+  .threshold-row span { min-width: 36px; text-align: right; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="page-header">
+    <h1><i class="ti ti-topology-ring-3"></i> Excel Relationship Analyzer</h1>
+    <p>Upload multiple Excel or CSV files to automatically discover foreign key relationships between tables.</p>
+  </div>
+
+  <div class="card">
+    <div class="upload-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple>
+      <i class="ti ti-table-import"></i>
+      <strong>Drop Excel / CSV files here</strong>
+      <p>or click to browse &mdash; supports .xlsx, .xls, .csv</p>
+    </div>
+    <div class="file-chips" id="chip-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">matching strategies</div>
+    <div class="options-row" id="strategy-options">
+      <label class="option-pill checked"><input type="checkbox" value="exact" checked><i class="ti ti-equal"></i>Exact match</label>
+      <label class="option-pill checked"><input type="checkbox" value="trim_zeros" checked><i class="ti ti-number-0"></i>Trim leading zeros</label>
+      <label class="option-pill checked"><input type="checkbox" value="no_hyphens" checked><i class="ti ti-minus"></i>Remove hyphens</label>
+      <label class="option-pill checked"><input type="checkbox" value="lowercase" checked><i class="ti ti-letter-case"></i>Case-insensitive</label>
+      <label class="option-pill"><input type="checkbox" value="trim_spaces"><i class="ti ti-space"></i>Trim spaces</label>
+      <label class="option-pill"><input type="checkbox" value="no_underscores"><i class="ti ti-line"></i>Remove underscores</label>
+    </div>
+
+    <div class="section-title">thresholds</div>
+    <div class="threshold-row">
+      <label>Min match ratio</label>
+      <input type="range" id="thresh-ratio" min="10" max="90" value="30" step="5">
+      <span id="thresh-ratio-out">30%</span>
+    </div>
+    <div class="threshold-row">
+      <label>Min unique values per field</label>
+      <input type="range" id="thresh-uniq" min="2" max="20" value="2" step="1">
+      <span id="thresh-uniq-out">2</span>
+    </div>
+
+    <div class="toolbar">
+      <button id="analyze-btn" disabled><i class="ti ti-search"></i>Analyze relationships</button>
+      <button id="clear-btn" style="display:none"><i class="ti ti-refresh"></i>Reset</button>
+      <div style="flex:1">
+        <div class="progress-bar" id="prog-wrap" style="display:none"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div id="status-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="results" style="display:none">
+    <div class="card">
+      <div class="section-title">summary</div>
+      <div class="summary-grid" id="summary-cards"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem">
+        <div class="section-title" style="margin:0">relationship map</div>
+        <span style="font-size:11px;color:var(--text3)">drag tables to rearrange</span>
+      </div>
+      <div id="canvas-wrap">
+        <svg id="rel-canvas"></svg>
+        <div id="table-host"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line green"></div> Strong match (&ge;70%)</div>
+        <div class="legend-item"><div class="legend-line amber"></div> Fuzzy match</div>
+        <div class="legend-item"><i class="ti ti-git-branch" style="font-size:13px;color:var(--warn-text)"></i> FK-linked field</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">relationship details</div>
+      <div class="rel-detail" id="rel-table">
+        <div class="rel-row header">
+          <div>source field</div><div></div><div>target field</div><div>match</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+const chipList = document.getElementById('chip-list');
+const analyzeBtn = document.getElementById('analyze-btn');
+const clearBtn = document.getElementById('clear-btn');
+const results = document.getElementById('results');
+const summaryCards = document.getElementById('summary-cards');
+const tableHost = document.getElementById('table-host');
+const relCanvas = document.getElementById('rel-canvas');
+const relTable = document.getElementById('rel-table');
+const progWrap = document.getElementById('prog-wrap');
+const progFill = document.getElementById('prog-fill');
+const statusMsg = document.getElementById('status-msg');
+const strategyOptions = document.getElementById('strategy-options');
+const threshRatio = document.getElementById('thresh-ratio');
+const threshUniq = document.getElementById('thresh-uniq');
+
+let files = {};
+let relationships = [];
+let tableCards = {};
+
+// Threshold sliders
+threshRatio.addEventListener('input', () => { document.getElementById('thresh-ratio-out').textContent = threshRatio.value + '%'; });
+threshUniq.addEventListener('input', () => { document.getElementById('thresh-uniq-out').textContent = threshUniq.value; });
+
+// Drag & drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+// Strategy toggles
+strategyOptions.querySelectorAll('.option-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    const cb = pill.querySelector('input');
+    cb.checked = !cb.checked;
+    pill.classList.toggle('checked', cb.checked);
+  });
+});
+
+clearBtn.addEventListener('click', () => {
+  files = {}; relationships = []; tableCards = {};
+  chipList.innerHTML = '';
+  results.style.display = 'none';
+  clearBtn.style.display = 'none';
+  analyzeBtn.disabled = true;
+  statusMsg.textContent = '';
+});
+
+function handleFiles(fileList) {
+  Array.from(fileList).forEach(f => { files[f.name] = f; });
+  renderChips();
+  analyzeBtn.disabled = Object.keys(files).length < 2;
+}
+
+function renderChips() {
+  chipList.innerHTML = '';
+  Object.keys(files).forEach(name => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<i class="ti ti-file-spreadsheet"></i><span>${name}</span><button title="Remove ${name}" onclick="removeFile('${CSS.escape(name)}')"><i class="ti ti-x"></i></button>`;
+    chipList.appendChild(chip);
+  });
+}
+
+window.removeFile = name => {
+  delete files[name];
+  renderChips();
+  analyzeBtn.disabled = Object.keys(files).length < 2;
+};
+
+function getStrategies() {
+  const strats = {};
+  strategyOptions.querySelectorAll('input').forEach(cb => { strats[cb.value] = cb.checked; });
+  return strats;
+}
+
+function normalize(val, strats) {
+  let s = String(val == null ? '' : val).trim();
+  if (strats.lowercase) s = s.toLowerCase();
+  if (strats.trim_zeros) s = s.replace(/^0+(?=\d)/, '');
+  if (strats.no_hyphens) s = s.replace(/-/g, '');
+  if (strats.trim_spaces) s = s.replace(/\s+/g, '');
+  if (strats.no_underscores) s = s.replace(/_/g, '');
+  return s;
+}
+
+async function readFile(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        if (rows.length < 2) return res({ headers: [], data: [] });
+        const headers = rows[0].map(h => String(h).trim()).filter(Boolean);
+        const dataRows = rows.slice(1).filter(r => r.some(c => c !== ''));
+        res({ headers, data: dataRows });
+      } catch(err) { rej(err); }
+    };
+    reader.onerror = () => rej(new Error('Failed to read ' + file.name));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function setProgress(pct, msg) {
+  progFill.style.width = pct + '%';
+  if (msg) statusMsg.textContent = msg;
+}
+
+analyzeBtn.addEventListener('click', async () => {
+  analyzeBtn.disabled = true;
+  clearBtn.style.display = 'none';
+  results.style.display = 'none';
+  progWrap.style.display = 'block';
+  setProgress(0, 'Reading files…');
+
+  const strats = getStrategies();
+  const MIN_MATCH_RATIO = parseInt(threshRatio.value) / 100;
+  const MIN_UNIQUE = parseInt(threshUniq.value);
+  const tables = {};
+  const names = Object.keys(files);
+
+  try {
+    for (let i = 0; i < names.length; i++) {
+      setProgress(Math.round((i / names.length) * 40), `Parsing ${names[i]}…`);
+      tables[names[i]] = await readFile(files[names[i]]);
+    }
+  } catch (err) {
+    statusMsg.textContent = 'Error reading file: ' + err.message;
+    analyzeBtn.disabled = false;
+    return;
+  }
+
+  setProgress(50, 'Finding relationships…');
+
+  relationships = [];
+
+  for (let ai = 0; ai < names.length; ai++) {
+    for (let bi = ai + 1; bi < names.length; bi++) {
+      const na = names[ai], nb = names[bi];
+      const ta = tables[na], tb = tables[nb];
+
+      for (let ci = 0; ci < ta.headers.length; ci++) {
+        const ha = ta.headers[ci];
+        const valsA = ta.data.map(r => normalize(r[ci], strats)).filter(Boolean);
+        const setA = new Set(valsA);
+        if (setA.size < MIN_UNIQUE) continue;
+
+        for (let cj = 0; cj < tb.headers.length; cj++) {
+          const hb = tb.headers[cj];
+          const valsB = tb.data.map(r => normalize(r[cj], strats)).filter(Boolean);
+          const setB = new Set(valsB);
+          if (setB.size < MIN_UNIQUE) continue;
+
+          const smaller = setA.size <= setB.size ? setA : setB;
+          const larger = setA.size <= setB.size ? setB : setA;
+          let matched = 0;
+          smaller.forEach(v => { if (larger.has(v)) matched++; });
+          const ratio = matched / Math.max(smaller.size, 1);
+
+          if (ratio >= MIN_MATCH_RATIO) {
+            relationships.push({
+              tableA: na, fieldA: ha, idxA: ci,
+              tableB: nb, fieldB: hb, idxB: cj,
+              matched, totalA: setA.size, totalB: setB.size,
+              ratio,
+              matchType: ratio >= 0.7 ? 'exact' : 'fuzzy'
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Sort and deduplicate — keep best per field pair
+  relationships.sort((a, b) => b.ratio - a.ratio);
+  const seen = new Set();
+  relationships = relationships.filter(r => {
+    const key = [r.tableA, r.fieldA, r.tableB, r.fieldB].join('|');
+    const rkey = [r.tableB, r.fieldB, r.tableA, r.fieldA].join('|');
+    if (seen.has(key) || seen.has(rkey)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  setProgress(85, 'Rendering…');
+  renderResults(tables, names);
+  setProgress(100, '');
+  setTimeout(() => {
+    progWrap.style.display = 'none';
+    statusMsg.textContent = `Done — ${relationships.length} relationship${relationships.length !== 1 ? 's' : ''} found.`;
+    analyzeBtn.disabled = false;
+    clearBtn.style.display = 'flex';
+  }, 400);
+});
+
+function renderResults(tables, names) {
+  const totalFields = names.reduce((s, n) => s + tables[n].headers.length, 0);
+  const totalRows = names.reduce((s, n) => s + tables[n].data.length, 0);
+  const strongRels = relationships.filter(r => r.ratio >= 0.7).length;
+
+  summaryCards.innerHTML = `
+    <div class="metric"><div class="metric-label">Tables</div><div class="metric-value">${names.length}</div></div>
+    <div class="metric"><div class="metric-label">Total fields</div><div class="metric-value">${totalFields}</div></div>
+    <div class="metric"><div class="metric-label">Total rows</div><div class="metric-value">${totalRows.toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">Relationships</div><div class="metric-value ${relationships.length > 0 ? 'good' : 'warn'}">${relationships.length}</div></div>
+    <div class="metric"><div class="metric-label">Strong (&ge;70%)</div><div class="metric-value good">${strongRels}</div></div>
+  `;
+
+  // Build linked fields set
+  const linkedFields = new Set();
+  relationships.forEach(r => {
+    linkedFields.add(r.tableA + '|' + r.fieldA);
+    linkedFields.add(r.tableB + '|' + r.fieldB);
+  });
+
+  // Render table cards
+  tableHost.innerHTML = '';
+  tableCards = {};
+  const cols = Math.min(Math.ceil(Math.sqrt(names.length)), 4);
+  const cardW = 200;
+  const gapX = 240;
+
+  names.forEach((name, idx) => {
+    const t = tables[name];
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const prevHeights = names.slice(0, idx).filter((_, i) => Math.floor(i / cols) === row).length;
+    const x = 24 + col * gapX;
+    const rowMaxH = names.filter((_, i) => Math.floor(i / cols) === row)
+      .reduce((m, n) => Math.max(m, tables[n].headers.length * 27 + 56), 80);
+    const y = 24 + row * (rowMaxH + 24);
+
+    const card = document.createElement('div');
+    card.className = 'table-card';
+    card.style.cssText = `left:${x}px;top:${y}px;width:${cardW}px`;
+    card.dataset.table = name;
+
+    const shortName = name.replace(/\.(xlsx|xls|csv)$/i, '');
+    const fieldRows = t.headers.map(h => {
+      const isLinked = linkedFields.has(name + '|' + h);
+      return `<div class="field-row${isLinked ? ' linked' : ''}" data-field="${h.replace(/"/g,'&quot;')}" data-table="${name}">
+        <i class="ti ti-${isLinked ? 'git-branch' : 'minus'}" style="font-size:11px;color:${isLinked ? 'var(--warn-text)' : 'var(--text3)'}"></i>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${h}</span>
+        ${isLinked ? '<span class="fk-badge">FK</span>' : ''}
+      </div>`;
+    }).join('');
+
+    card.innerHTML = `<div class="table-header"><i class="ti ti-table"></i><span title="${shortName}">${shortName}</span></div>${fieldRows}`;
+    makeDraggable(card);
+    tableHost.appendChild(card);
+    tableCards[name] = card;
+  });
+
+  setTimeout(() => { resizeCanvas(); drawRelationships(); }, 60);
+
+  // Rel table
+  while (relTable.children.length > 1) relTable.removeChild(relTable.lastChild);
+  if (relationships.length === 0) {
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.textContent = 'No relationships found. Try lowering the minimum match ratio or enabling more matching strategies.';
+    relTable.appendChild(n);
+  } else {
+    relationships.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'rel-row';
+      const pct = Math.round(r.ratio * 100);
+      const shortA = r.tableA.replace(/\.(xlsx|xls|csv)$/i, '');
+      const shortB = r.tableB.replace(/\.(xlsx|xls|csv)$/i, '');
+      row.innerHTML = `
+        <div title="${shortA}.${r.fieldA}"><strong>${shortA}</strong> &middot; ${r.fieldA}</div>
+        <div class="arrow-mid">&#8596;</div>
+        <div title="${shortB}.${r.fieldB}"><strong>${shortB}</strong> &middot; ${r.fieldB}</div>
+        <div><span class="tag ${r.matchType}">${pct}%</span></div>
+      `;
+      relTable.appendChild(row);
+    });
+  }
+
+  results.style.display = 'block';
+}
+
+function resizeCanvas() {
+  let maxX = 0, maxY = 0;
+  Object.values(tableCards).forEach(c => {
+    maxX = Math.max(maxX, c.offsetLeft + c.offsetWidth + 24);
+    maxY = Math.max(maxY, c.offsetTop + c.offsetHeight + 24);
+  });
+  const wrap = document.getElementById('canvas-wrap');
+  const w = Math.max(maxX, wrap.clientWidth);
+  const h = Math.max(maxY, 320);
+  tableHost.style.minWidth = w + 'px';
+  tableHost.style.minHeight = h + 'px';
+  relCanvas.setAttribute('width', w);
+  relCanvas.setAttribute('height', h);
+  relCanvas.style.width = w + 'px';
+  relCanvas.style.height = h + 'px';
+}
+
+function getFieldAnchor(tableName, fieldName) {
+  const card = tableCards[tableName];
+  if (!card) return null;
+  const fieldEl = card.querySelector(`[data-field="${fieldName.replace(/"/g, '\\"')}"]`);
+  if (!fieldEl) return null;
+  const hostRect = tableHost.getBoundingClientRect();
+  const fieldRect = fieldEl.getBoundingClientRect();
+  const y = fieldRect.top - hostRect.top + fieldRect.height / 2 + tableHost.scrollTop;
+  return {
+    y,
+    leftX: card.offsetLeft,
+    rightX: card.offsetLeft + card.offsetWidth,
+    cx: card.offsetLeft + card.offsetWidth / 2
+  };
+}
+
+function drawRelationships() {
+  relCanvas.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const defs = document.createElementNS(ns, 'defs');
+  ['green-dot', 'amber-dot'].forEach((id, i) => {
+    const m = document.createElementNS(ns, 'marker');
+    m.setAttribute('id', id);
+    m.setAttribute('viewBox', '0 0 6 6');
+    m.setAttribute('refX', '3'); m.setAttribute('refY', '3');
+    m.setAttribute('markerWidth', '5'); m.setAttribute('markerHeight', '5');
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', '3'); c.setAttribute('cy', '3'); c.setAttribute('r', '2.5');
+    c.setAttribute('fill', i === 0 ? '#10b981' : '#f59e0b');
+    m.appendChild(c); defs.appendChild(m);
+  });
+  relCanvas.appendChild(defs);
+
+  relationships.forEach(r => {
+    const a = getFieldAnchor(r.tableA, r.fieldA);
+    const b = getFieldAnchor(r.tableB, r.fieldB);
+    if (!a || !b) return;
+
+    const aOnLeft = a.cx < b.cx;
+    const x1 = aOnLeft ? a.rightX : a.leftX;
+    const x2 = aOnLeft ? b.leftX : b.rightX;
+    const y1 = a.y, y2 = b.y;
+    const mx = (x1 + x2) / 2;
+    const color = r.matchType === 'exact' ? '#10b981' : '#f59e0b';
+    const dotId = r.matchType === 'exact' ? 'green-dot' : 'amber-dot';
+
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-dasharray', r.matchType === 'exact' ? '7 3' : '4 4');
+    path.setAttribute('opacity', '0.8');
+    path.setAttribute('marker-start', `url(#${dotId})`);
+    path.setAttribute('marker-end', `url(#${dotId})`);
+    relCanvas.appendChild(path);
+
+    // Percentage badge
+    const pct = Math.round(r.ratio * 100);
+    const midY = (y1 + y2) / 2;
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('x', mx - 16); bg.setAttribute('y', midY - 10);
+    bg.setAttribute('width', '32'); bg.setAttribute('height', '16');
+    bg.setAttribute('rx', '4');
+    bg.setAttribute('fill', r.matchType === 'exact' ? '#eaf3de' : '#faeeda');
+    bg.setAttribute('stroke', color); bg.setAttribute('stroke-width', '0.5');
+    relCanvas.appendChild(bg);
+
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', mx); txt.setAttribute('y', midY + 1);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('dominant-baseline', 'central');
+    txt.setAttribute('font-size', '10');
+    txt.setAttribute('font-weight', '600');
+    txt.setAttribute('fill', r.matchType === 'exact' ? '#3b6d11' : '#854f0b');
+    txt.setAttribute('font-family', '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif');
+    txt.textContent = pct + '%';
+    relCanvas.appendChild(txt);
+  });
+}
+
+function makeDraggable(el) {
+  let startX, startY, origLeft, origTop;
+  el.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+    startX = e.clientX; startY = e.clientY;
+    origLeft = el.offsetLeft; origTop = el.offsetTop;
+    el.style.zIndex = '10';
+    const onMove = ev => {
+      el.style.left = Math.max(0, origLeft + ev.clientX - startX) + 'px';
+      el.style.top = Math.max(0, origTop + ev.clientY - startY) + 'px';
+      resizeCanvas();
+      drawRelationships();
+    };
+    const onUp = () => {
+      el.style.zIndex = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    e.preventDefault();
+  });
+}
+</script>
+</body>
+</html>
