@@ -313,7 +313,11 @@ body.dragging-over::after {
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
         <div class="card-title" style="margin:0">relationship details</div>
-        <span id="new-rel-badge" style="display:none;font-size:11px;padding:2px 9px;background:var(--info-bg);color:var(--info-text);border-radius:3px;border:0.5px solid var(--info-border)"></span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="new-rel-badge" style="display:none;font-size:11px;padding:2px 9px;background:var(--info-bg);color:var(--info-text);border-radius:3px;border:0.5px solid var(--info-border)"></span>
+          <button class="vis-toggle-btn" id="export-excel-btn"><i class="ti ti-file-spreadsheet"></i>Download Excel</button>
+          <button class="vis-toggle-btn" id="export-word-btn"><i class="ti ti-file-word"></i>Download Word</button>
+        </div>
       </div>
       <div class="rel-detail" id="rel-table">
         <div class="rel-row header"><div>source field</div><div></div><div>target field</div><div>match &amp; records</div><div></div></div>
@@ -416,31 +420,59 @@ document.addEventListener('drop', e => {
 fileInput.addEventListener('change', e => { handleNewFiles(e.target.files); fileInput.value = ''; });
 
 // ── Hide / show all lines ─────────────────────────────────────────────────────
+// ── Hide / show all lines ─────────────────────────────────────────────────────
 hideAllBtn.addEventListener('click', () => {
   relationships.forEach(r => hiddenLines.add(lineKey(r)));
   drawRelationships();
-  renderRelTable();
-  hideAllBtn.style.display = 'none';
-  showAllBtn.style.display = 'flex';
+  syncVisButtons();
+  // Update all eye buttons in table without full re-render
+  relTable.querySelectorAll('.eye-btn').forEach(btn => {
+    btn.classList.add('hidden-line');
+    btn.title = 'Show line';
+    btn.querySelector('i').className = 'ti ti-eye-off';
+    btn.closest('.rel-row').style.opacity = '0.45';
+    btn.closest('.rel-row').querySelectorAll('[data-strikethrough]').forEach(el => el.style.textDecoration = 'line-through');
+  });
 });
 showAllBtn.addEventListener('click', () => {
   hiddenLines.clear();
   drawRelationships();
-  renderRelTable();
-  showAllBtn.style.display = 'none';
-  hideAllBtn.style.display = 'flex';
+  syncVisButtons();
+  relTable.querySelectorAll('.eye-btn').forEach(btn => {
+    btn.classList.remove('hidden-line');
+    btn.title = 'Hide line';
+    btn.querySelector('i').className = 'ti ti-eye';
+    btn.closest('.rel-row').style.opacity = '1';
+    btn.closest('.rel-row').querySelectorAll('[data-strikethrough]').forEach(el => el.style.textDecoration = '');
+  });
 });
 
+function syncVisButtons() {
+  const total  = relationships.length;
+  const hidden = hiddenLines.size;
+  hideAllBtn.style.display = (total > 0 && hidden < total) ? 'flex' : 'none';
+  showAllBtn.style.display = hidden > 0 ? 'flex' : 'none';
+}
+
 function lineKey(r) { return `${r.tableA}|${r.fieldA}|${r.tableB}|${r.fieldB}`; }
-function toggleLine(key) {
-  if (hiddenLines.has(key)) hiddenLines.delete(key); else hiddenLines.add(key);
-  // sync global buttons
-  const allHidden = relationships.length > 0 && relationships.every(r => hiddenLines.has(lineKey(r)));
-  const noneHidden = hiddenLines.size === 0;
-  hideAllBtn.style.display = allHidden ? 'none' : 'flex';
-  showAllBtn.style.display = allHidden ? 'flex' : 'none';
+
+function toggleLine(key, btn) {
+  const isNowHidden = !hiddenLines.has(key);
+  if (isNowHidden) hiddenLines.add(key); else hiddenLines.delete(key);
+
+  // Update just the clicked row in-place — no full re-render
+  const row = btn.closest('.rel-row');
+  row.style.opacity = isNowHidden ? '0.45' : '1';
+  row.querySelectorAll('[data-strikethrough]').forEach(el => {
+    el.style.textDecoration = isNowHidden ? 'line-through' : '';
+    el.style.color = isNowHidden ? 'var(--text3)' : '';
+  });
+  btn.classList.toggle('hidden-line', isNowHidden);
+  btn.title = isNowHidden ? 'Show line' : 'Hide line';
+  btn.querySelector('i').className = `ti ti-${isNowHidden ? 'eye-off' : 'eye'}`;
+
   drawRelationships();
-  renderRelTable();
+  syncVisButtons();
 }
 
 // ── Clear ─────────────────────────────────────────────────────────────────────
@@ -867,32 +899,44 @@ function renderRelTable() {
   }
 
   relationships.forEach(r => {
-    const pct  = Math.round(r.ratio * 100);
-    const la   = fmtLabel(r.tableA), lb = fmtLabel(r.tableB);
-    const lk   = lineKey(r);
+    const pct      = Math.round(r.ratio * 100);
+    const la       = fmtLabel(r.tableA), lb = fmtLabel(r.tableB);
+    const lk       = lineKey(r);
     const isHidden = hiddenLines.has(lk);
-    const row  = document.createElement('div');
-    row.className = 'rel-row' + (isHidden ? ' hidden-rel' : '');
+    const row      = document.createElement('div');
+    row.className  = 'rel-row';
     row.style.opacity = isHidden ? '0.45' : '1';
+
     row.innerHTML = `
-      <div title="${a(r.tableA + '.' + r.fieldA)}" style="${isHidden ? 'text-decoration:line-through;color:var(--text3)' : ''}"><strong>${h(la)}</strong> &middot; ${h(r.fieldA)}</div>
+      <div data-strikethrough="1" title="${a(r.tableA + '.' + r.fieldA)}"
+           style="${isHidden ? 'text-decoration:line-through;color:var(--text3)' : ''}">
+        <strong>${h(la)}</strong> &middot; ${h(r.fieldA)}
+      </div>
       <div class="arrow-mid">&#8596;</div>
-      <div title="${a(r.tableB + '.' + r.fieldB)}" style="${isHidden ? 'text-decoration:line-through;color:var(--text3)' : ''}"><strong>${h(lb)}</strong> &middot; ${h(r.fieldB)}</div>
+      <div data-strikethrough="1" title="${a(r.tableB + '.' + r.fieldB)}"
+           style="${isHidden ? 'text-decoration:line-through;color:var(--text3)' : ''}">
+        <strong>${h(lb)}</strong> &middot; ${h(r.fieldB)}
+      </div>
       <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
         <span class="tag ${r.matchType}">${pct}%</span>
         <span style="font-size:11px;color:var(--text2);white-space:nowrap">${r.matched.toLocaleString()} matched</span>
         ${r.isNew ? '<span class="tag isnew">new</span>' : ''}
       </div>
       <div>
-        <button class="eye-btn ${isHidden ? 'hidden-line' : ''}" title="${isHidden ? 'Show line' : 'Hide line'}" data-lk="${a(lk)}">
+        <button class="eye-btn ${isHidden ? 'hidden-line' : ''}"
+                title="${isHidden ? 'Show line' : 'Hide line'}"
+                data-lk="${a(lk)}">
           <i class="ti ti-${isHidden ? 'eye-off' : 'eye'}"></i>
         </button>
       </div>`;
+
     row.querySelector('.eye-btn').addEventListener('click', e => {
-      toggleLine(e.currentTarget.dataset.lk);
+      toggleLine(e.currentTarget.dataset.lk, e.currentTarget);
     });
     relTable.appendChild(row);
   });
+
+  syncVisButtons();
 }
 
 function fmtLabel(tableKey) {
@@ -1017,6 +1061,202 @@ function makeDraggable(el) {
     document.addEventListener('mouseup', up);
     e.preventDefault();
   });
+}
+
+// ── Export buttons ────────────────────────────────────────────────────────────
+$('export-excel-btn').addEventListener('click', exportExcel);
+$('export-word-btn').addEventListener('click', exportWord);
+
+function visibleRels() { return relationships.filter(r => !hiddenLines.has(lineKey(r))); }
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Summary
+  const tableKeys = Object.keys(tableData);
+  const totalRows = tableKeys.reduce((s,k) => s + tableData[k].data.length, 0);
+  const strong = visibleRels().filter(r => r.ratio >= 0.7).length;
+  const summaryRows = [
+    ['Excel Relationship Analyzer — Export'],
+    ['Generated', new Date().toLocaleString()],
+    [],
+    ['Metric', 'Value'],
+    ['Tables analyzed', tableKeys.length],
+    ['Total fields', tableKeys.reduce((s,k) => s + tableData[k].headers.length, 0)],
+    ['Total rows', totalRows],
+    ['Relationships (visible)', visibleRels().length],
+    ['Strong matches (≥70%)', strong],
+    ['Hidden relationships', hiddenLines.size],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{wch:32},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // Sheet 2: Relationships
+  const relHeader = ['Source Table', 'Source Field', '↔', 'Target Table', 'Target Field', 'Match %', 'Matched Records', 'Total (Source)', 'Total (Target)', 'Match Type', 'Visible'];
+  const relRows = relationships.map(r => [
+    fmtLabel(r.tableA), r.fieldA, '↔',
+    fmtLabel(r.tableB), r.fieldB,
+    Math.round(r.ratio * 100) + '%',
+    r.matched,
+    r.totalA,
+    r.totalB,
+    r.matchType === 'exact' ? 'Strong (≥70%)' : 'Fuzzy (<70%)',
+    hiddenLines.has(lineKey(r)) ? 'Hidden' : 'Visible',
+  ]);
+  const wsRel = XLSX.utils.aoa_to_sheet([relHeader, ...relRows]);
+  wsRel['!cols'] = [{wch:22},{wch:18},{wch:3},{wch:22},{wch:18},{wch:10},{wch:16},{wch:14},{wch:14},{wch:16},{wch:8}];
+  // Color header row
+  const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: 'E6F1FB' } } };
+  relHeader.forEach((_, ci) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+    if (wsRel[cellRef]) wsRel[cellRef].s = headerStyle;
+  });
+  XLSX.utils.book_append_sheet(wb, wsRel, 'Relationships');
+
+  // Sheet 3: Tables & Fields
+  const fieldsHeader = ['Table', 'Sheet', 'Field', 'Linked (FK)'];
+  const fieldsRows = [];
+  tableKeys.forEach(key => {
+    const td = tableData[key];
+    const short = td.fileName.replace(/\.(xlsx|xls|csv)$/i, '');
+    const lbl = fmtLabel(key);
+    td.headers.forEach(fh => {
+      const isLinked = relationships.some(r =>
+        !hiddenLines.has(lineKey(r)) &&
+        ((r.tableA === key && r.fieldA === fh) || (r.tableB === key && r.fieldB === fh))
+      );
+      fieldsRows.push([lbl, td.sheetName, fh, isLinked ? 'Yes' : '']);
+    });
+  });
+  const wsFields = XLSX.utils.aoa_to_sheet([fieldsHeader, ...fieldsRows]);
+  wsFields['!cols'] = [{wch:24},{wch:18},{wch:22},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsFields, 'Tables & Fields');
+
+  XLSX.writeFile(wb, 'relationship-analysis.xlsx');
+}
+
+function exportWord() {
+  const vis = visibleRels();
+  const tableKeys = Object.keys(tableData);
+  const now = new Date().toLocaleString();
+
+  // Build a clean HTML document that Word can open natively
+  const rows = vis.map((r, i) => {
+    const pct = Math.round(r.ratio * 100);
+    const la = fmtLabel(r.tableA), lb = fmtLabel(r.tableB);
+    const bg = r.matchType === 'exact' ? '#eaf3de' : '#faeeda';
+    const fg = r.matchType === 'exact' ? '#3b6d11' : '#854f0b';
+    return `<tr style="background:${i%2===0?'#fff':'#f9f8f6'}">
+      <td style="padding:7px 10px;border:1px solid #ddd">${h(la)}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-weight:600;color:#555">${h(r.fieldA)}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;text-align:center;color:#999">↔</td>
+      <td style="padding:7px 10px;border:1px solid #ddd">${h(lb)}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;font-weight:600;color:#555">${h(r.fieldB)}</td>
+      <td style="padding:7px 10px;border:1px solid #ddd;text-align:center">
+        <span style="background:${bg};color:${fg};padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600">${pct}%</span>
+      </td>
+      <td style="padding:7px 10px;border:1px solid #ddd;text-align:right">${r.matched.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  // Table structure summary
+  const tableStructRows = tableKeys.map(key => {
+    const td = tableData[key];
+    const lbl = fmtLabel(key);
+    const linkedFields = td.headers.filter(fh =>
+      relationships.some(r => !hiddenLines.has(lineKey(r)) &&
+        ((r.tableA === key && r.fieldA === fh) || (r.tableB === key && r.fieldB === fh)))
+    );
+    return `<tr>
+      <td style="padding:6px 10px;border:1px solid #ddd;font-weight:600">${h(lbl)}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${td.headers.length}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${td.data.length.toLocaleString()}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${linkedFields.length > 0 ? linkedFields.map(f => h(f)).join(', ') : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>Relationship Analysis</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1a1a18; margin: 2cm; }
+  h1 { font-size: 18pt; color: #185fa5; border-bottom: 2px solid #185fa5; padding-bottom: 6px; margin-bottom: 4px; }
+  h2 { font-size: 13pt; color: #185fa5; margin-top: 24px; margin-bottom: 8px; }
+  .meta { font-size: 10pt; color: #666; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 16px; font-size: 10pt; }
+  th { background: #185fa5; color: #fff; padding: 8px 10px; border: 1px solid #1255a0; text-align: left; font-weight: 600; }
+  .summary-grid { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .metric-box { border: 1px solid #ddd; border-radius: 4px; padding: 10px 16px; min-width: 120px; background: #f5f5f3; }
+  .metric-label { font-size: 9pt; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+  .metric-value { font-size: 20pt; font-weight: 600; color: #185fa5; }
+</style>
+</head>
+<body>
+<h1>Excel Relationship Analyzer — Findings Report</h1>
+<div class="meta">Generated: ${now} &nbsp;|&nbsp; Visible relationships: ${vis.length} &nbsp;|&nbsp; Tables: ${tableKeys.length}</div>
+
+<h2>Summary</h2>
+<div class="summary-grid">
+  <div class="metric-box"><div class="metric-label">Tables</div><div class="metric-value">${tableKeys.length}</div></div>
+  <div class="metric-box"><div class="metric-label">Total Rows</div><div class="metric-value">${tableKeys.reduce((s,k)=>s+tableData[k].data.length,0).toLocaleString()}</div></div>
+  <div class="metric-box"><div class="metric-label">Relationships</div><div class="metric-value">${vis.length}</div></div>
+  <div class="metric-box"><div class="metric-label">Strong ≥70%</div><div class="metric-value">${vis.filter(r=>r.ratio>=0.7).length}</div></div>
+  ${hiddenLines.size > 0 ? `<div class="metric-box"><div class="metric-label">Hidden</div><div class="metric-value">${hiddenLines.size}</div></div>` : ''}
+</div>
+
+<h2>Table Structure</h2>
+<table>
+  <thead><tr>
+    <th>Table</th><th>Fields</th><th>Rows</th><th>Linked Fields (FK)</th>
+  </tr></thead>
+  <tbody>${tableStructRows}</tbody>
+</table>
+
+<h2>Relationships (${vis.length} visible)</h2>
+${vis.length === 0 ? '<p style="color:#888;font-style:italic">All relationships are currently hidden.</p>' : `
+<table>
+  <thead><tr>
+    <th>Source Table</th><th>Source Field</th><th></th>
+    <th>Target Table</th><th>Target Field</th>
+    <th style="text-align:center">Match</th>
+    <th style="text-align:right">Matched Records</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>`}
+
+${hiddenLines.size > 0 ? `
+<h2>Hidden Relationships (${hiddenLines.size})</h2>
+<table>
+  <thead><tr><th>Source Table</th><th>Source Field</th><th></th><th>Target Table</th><th>Target Field</th><th>Match</th><th style="text-align:right">Records</th></tr></thead>
+  <tbody>
+    ${relationships.filter(r => hiddenLines.has(lineKey(r))).map((r,i) => `
+    <tr style="background:${i%2===0?'#fff':'#f9f8f6'};color:#999">
+      <td style="padding:6px 10px;border:1px solid #ddd">${h(fmtLabel(r.tableA))}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${h(r.fieldA)}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;text-align:center">↔</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${h(fmtLabel(r.tableB))}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd">${h(r.fieldB)}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;text-align:center">${Math.round(r.ratio*100)}%</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;text-align:right">${r.matched.toLocaleString()}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>` : ''}
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'application/msword' });
+  const url  = URL.createObjectURL(blob);
+  const a2   = document.createElement('a');
+  a2.href    = url;
+  a2.download = 'relationship-analysis.doc';
+  a2.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
