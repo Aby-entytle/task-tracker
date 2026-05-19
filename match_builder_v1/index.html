@@ -1,0 +1,520 @@
+import { useState, useCallback, useRef } from "react";
+import * as XLSX from "xlsx";
+
+const Clean = {
+  trim: v => String(v ?? "").trim(),
+  lower: v => String(v ?? "").toLowerCase(),
+  hyphens: v => String(v ?? "").replace(/-/g, ""),
+  underscores: v => String(v ?? "").replace(/_/g, ""),
+  dots: v => String(v ?? "").replace(/\./g, ""),
+  slashes: v => String(v ?? "").replace(/[\/\\]/g, ""),
+  spaces: v => String(v ?? "").replace(/\s+/g, ""),
+  specialChars: v => String(v ?? "").replace(/[^a-zA-Z0-9]/g, ""),
+  leading_zeros: v => String(v ?? "").replace(/^0+/, ""),
+};
+
+function applyCleans(val, selected) {
+  let v = String(val ?? "");
+  selected.forEach(k => { v = Clean[k](v); });
+  return v;
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function similarityPct(a, b) {
+  if (!a && !b) return 100;
+  if (!a || !b) return 0;
+  const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
+  return Math.round((1 - dist / Math.max(a.length, b.length)) * 100);
+}
+
+function exactMatch(a, b) { return a === b; }
+
+function readXlsx(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "binary" });
+        const sheets = {};
+        wb.SheetNames.forEach(name => {
+          const ws = wb.Sheets[name];
+          const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+          sheets[name] = data;
+        });
+        resolve({ name: file.name, sheets });
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsBinaryString(file);
+  });
+}
+
+const CLEAN_OPTIONS = [
+  { key: "trim", label: "Trim spaces" },
+  { key: "lower", label: "Lowercase" },
+  { key: "hyphens", label: "Remove hyphens (-)" },
+  { key: "underscores", label: "Remove underscores (_)" },
+  { key: "dots", label: "Remove dots (.)" },
+  { key: "slashes", label: "Remove slashes (/\\)" },
+  { key: "spaces", label: "Remove all spaces" },
+  { key: "specialChars", label: "Alphanumeric only" },
+  { key: "leading_zeros", label: "Remove leading zeros" },
+];
+
+export default function App() {
+  const [files, setFiles] = useState([]);
+  const [sourceFile, setSourceFile] = useState(null);
+  const [sourceSheet, setSourceSheet] = useState("");
+  const [sourceFields, setSourceFields] = useState([]);
+  const [targetFile, setTargetFile] = useState(null);
+  const [targetSheet, setTargetSheet] = useState("");
+  const [targetFields, setTargetFields] = useState([]);
+  const [targetMode, setTargetMode] = useState("all");
+  const [cleanOpts, setCleanOpts] = useState({ trim: true, lower: true });
+  const [fuzzyThreshold, setFuzzyThreshold] = useState(70);
+  const [maxFuzzyExamples, setMaxFuzzyExamples] = useState(3);
+  const [results, setResults] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [step, setStep] = useState(1);
+  const dropRef = useRef();
+
+  const handleDrop = useCallback(async e => {
+    e.preventDefault();
+    const dropped = Array.from(e.dataTransfer?.files || e.target.files || []).filter(f => f.name.match(/\.xlsx?$/i));
+    if (!dropped.length) return;
+    const parsed = await Promise.all(dropped.map(readXlsx));
+    setFiles(prev => {
+      const names = new Set(prev.map(f => f.name));
+      return [...prev, ...parsed.filter(p => !names.has(p.name))];
+    });
+  }, []);
+
+  const removeFile = name => {
+    setFiles(f => f.filter(x => x.name !== name));
+    if (sourceFile?.name === name) { setSourceFile(null); setSourceSheet(""); setSourceFields([]); }
+    if (targetFile?.name === name) { setTargetFile(null); setTargetSheet(""); setTargetFields([]); }
+  };
+
+  const srcData = sourceFile && sourceSheet ? (sourceFile.sheets[sourceSheet] || []) : [];
+  const srcCols = srcData.length ? Object.keys(srcData[0]) : [];
+  const tgtData = targetFile && targetSheet ? (targetFile.sheets[targetSheet] || []) : [];
+  const tgtCols = tgtData.length ? Object.keys(tgtData[0]) : [];
+
+  const toggleField = (arr, setArr, field) => {
+    setArr(prev => prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]);
+  };
+
+  const canRun = sourceFile && sourceSheet && sourceFields.length > 0 && targetFile && targetSheet && (targetMode === "all" || targetFields.length > 0);
+
+  const runAnalysis = () => {
+    setRunning(true);
+    setTimeout(() => {
+      try {
+        const activeCleans = Object.keys(cleanOpts).filter(k => cleanOpts[k]);
+        const tgtFieldsActive = targetMode === "all" ? tgtCols : targetFields;
+
+        const srcValues = srcData.map((row, i) => ({
+          rowNum: i + 2,
+          combined: sourceFields.map(f => String(row[f] ?? "")).join(" | "),
+          raw: row,
+        }));
+
+        const tgtValues = tgtData.map((row, i) => ({
+          rowNum: i + 2,
+          fields: tgtFieldsActive.reduce((acc, f) => { acc[f] = String(row[f] ?? ""); return acc; }, {}),
+          raw: row,
+        }));
+
+        const fieldResults = tgtFieldsActive.map(tField => {
+          let exactCount = 0, exactCleanCount = 0, fuzzyMatches = [];
+          const tgtVals = tgtValues.map(r => r.fields[tField]);
+
+          srcValues.forEach(src => {
+            const srcRaw = src.combined;
+            const srcClean = applyCleans(srcRaw, activeCleans);
+
+            tgtValues.forEach((tgt, ti) => {
+              const tgtRaw = tgt.fields[tField];
+              const tgtClean = applyCleans(tgtRaw, activeCleans);
+
+              if (exactMatch(srcRaw, tgtRaw)) exactCount++;
+              else if (exactMatch(srcClean, tgtClean)) exactCleanCount++;
+              else {
+                const pct = similarityPct(srcClean, tgtClean);
+                if (pct >= fuzzyThreshold) {
+                  fuzzyMatches.push({ srcRow: src.rowNum, srcVal: srcRaw, tgtRow: tgt.rowNum, tgtVal: tgtRaw, pct });
+                }
+              }
+            });
+          });
+
+          fuzzyMatches.sort((a, b) => b.pct - a.pct);
+          const topFuzzy = fuzzyMatches.slice(0, maxFuzzyExamples);
+          const totalSrc = srcValues.length;
+          const exactPct = Math.round((exactCount / totalSrc) * 100);
+          const exactCleanPct = Math.round((exactCleanCount / totalSrc) * 100);
+          const fuzzyUniqSrc = new Set(fuzzyMatches.map(m => m.srcRow)).size;
+          const fuzzyPct = Math.round((fuzzyUniqSrc / totalSrc) * 100);
+
+          return { field: tField, totalSrc, exactCount, exactPct, exactCleanCount, exactCleanPct, fuzzyUniqSrc, fuzzyPct, topFuzzy, fuzzyTotal: fuzzyMatches.length };
+        });
+
+        setResults({
+          srcLabel: sourceFields.join(" + "),
+          srcFile: sourceFile.name,
+          srcSheet: sourceSheet,
+          tgtFile: targetFile.name,
+          tgtSheet: targetSheet,
+          activeCleans,
+          fieldResults,
+          timestamp: new Date().toLocaleString(),
+        });
+        setStep(4);
+      } finally { setRunning(false); }
+    }, 50);
+  };
+
+  const downloadExcel = () => {
+    if (!results) return;
+    const wb = XLSX.utils.book_new();
+
+    const summaryData = [
+      ["Excel Field Match Analysis Report"],
+      ["Generated:", results.timestamp],
+      ["Source File:", results.srcFile, "Sheet:", results.srcSheet],
+      ["Source Fields:", results.srcLabel],
+      ["Target File:", results.tgtFile, "Sheet:", results.tgtSheet],
+      ["Data Cleaning:", results.activeCleans.join(", ") || "None"],
+      [],
+      ["Target Field", "Total Source Records", "Exact Match Count", "Exact Match %", "Clean Match Count", "Clean Match %", "Fuzzy Match Count", "Fuzzy Match %"],
+      ...results.fieldResults.map(r => [r.field, r.totalSrc, r.exactCount, r.exactPct + "%", r.exactCleanCount, r.exactCleanPct + "%", r.fuzzyUniqSrc, r.fuzzyPct + "%"]),
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws1, "Summary");
+
+    results.fieldResults.forEach(r => {
+      if (r.topFuzzy.length) {
+        const data = [
+          [`Fuzzy Match Examples — ${r.field}`],
+          ["Source Row", "Source Value", "Target Row", "Target Value", "Match %"],
+          ...r.topFuzzy.map(m => [m.srcRow, m.srcVal, m.tgtRow, m.tgtVal, m.pct + "%"]),
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, r.field.substring(0, 28));
+      }
+    });
+
+    XLSX.writeFile(wb, "match_analysis.xlsx");
+  };
+
+  const downloadWord = async () => {
+    if (!results) return;
+    const rows = results.fieldResults.map(r => `
+      <tr>
+        <td>${r.field}</td><td>${r.totalSrc}</td>
+        <td>${r.exactCount} (${r.exactPct}%)</td>
+        <td>${r.exactCleanCount} (${r.exactCleanPct}%)</td>
+        <td>${r.fuzzyUniqSrc} (${r.fuzzyPct}%)</td>
+      </tr>`).join("");
+
+    const fuzzyDetail = results.fieldResults.filter(r => r.topFuzzy.length > 0).map(r => `
+      <h3>Fuzzy Examples: ${r.field}</h3>
+      <table border="1" cellpadding="4" style="border-collapse:collapse;width:100%">
+        <tr style="background:#dce6f1"><th>Src Row</th><th>Source Value</th><th>Tgt Row</th><th>Target Value</th><th>Match %</th></tr>
+        ${r.topFuzzy.map(m => `<tr><td>${m.srcRow}</td><td>${m.srcVal}</td><td>${m.tgtRow}</td><td>${m.tgtVal}</td><td>${m.pct}%</td></tr>`).join("")}
+      </table>`).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      body{font-family:Arial,sans-serif;margin:40px;color:#222}
+      h1{color:#1a3a5c;font-size:20px}h2{color:#1a3a5c;font-size:16px;margin-top:24px}h3{font-size:14px;margin-top:16px}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th{background:#1a3a5c;color:#fff;padding:6px 8px;text-align:left;font-size:12px}
+      td{padding:5px 8px;font-size:12px;border-bottom:1px solid #ddd}
+      .meta{font-size:12px;color:#555;margin:4px 0}
+      .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+      .high{background:#d4edda;color:#155724}.mid{background:#fff3cd;color:#856404}.low{background:#f8d7da;color:#721c24}
+    </style></head><body>
+      <h1>Excel Field Match Analysis Report</h1>
+      <p class="meta">Generated: ${results.timestamp}</p>
+      <p class="meta"><strong>Source:</strong> ${results.srcFile} → ${results.srcSheet} | Fields: ${results.srcLabel}</p>
+      <p class="meta"><strong>Target:</strong> ${results.tgtFile} → ${results.tgtSheet}</p>
+      <p class="meta"><strong>Data Cleaning Applied:</strong> ${results.activeCleans.join(", ") || "None"}</p>
+      <h2>Match Summary</h2>
+      <table><thead><tr><th>Target Field</th><th>Source Records</th><th>Exact Match</th><th>After Cleaning</th><th>Fuzzy Match</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      ${fuzzyDetail ? `<h2>Fuzzy Match Examples</h2>${fuzzyDetail}` : ""}
+    </body></html>`;
+
+    const blob = new Blob([html], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "match_analysis.doc"; a.click();
+  };
+
+  const pctColor = pct => pct >= 60 ? "#155724" : pct >= 30 ? "#856404" : "#721c24";
+  const pctBg = pct => pct >= 60 ? "#d4edda" : pct >= 30 ? "#fff3cd" : "#f8d7da";
+
+  return (
+    <div style={{ fontFamily: "var(--font-sans)", padding: "1.5rem 1rem", maxWidth: 740, margin: "0 auto" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 500, margin: "0 0 4px", color: "var(--color-text-primary)" }}>Excel field matcher</h2>
+      <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 1.5rem" }}>Exact match, data cleaning, and fuzzy match analysis across Excel files</p>
+
+      {/* Steps nav */}
+      <div style={{ display: "flex", gap: 0, marginBottom: "1.5rem", borderRadius: "var(--border-radius-md)", overflow: "hidden", border: "0.5px solid var(--color-border-tertiary)" }}>
+        {["1. Upload files", "2. Configure", "3. Cleaning", "4. Results"].map((s, i) => (
+          <div key={i} onClick={() => i < step && setStep(i + 1)} style={{ flex: 1, padding: "8px 4px", textAlign: "center", fontSize: 12, fontWeight: step === i + 1 ? 500 : 400, background: step === i + 1 ? "var(--color-background-info)" : "var(--color-background-secondary)", color: step === i + 1 ? "var(--color-text-info)" : step > i + 1 ? "var(--color-text-secondary)" : "var(--color-text-tertiary)", cursor: i + 1 < step ? "pointer" : "default", borderRight: i < 3 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+            {step > i + 1 ? "✓ " : ""}{s}
+          </div>
+        ))}
+      </div>
+
+      {/* Step 1: Upload */}
+      {step === 1 && (
+        <div>
+          <div ref={dropRef} onDrop={handleDrop} onDragOver={e => e.preventDefault()}
+            style={{ border: "1.5px dashed var(--color-border-secondary)", borderRadius: "var(--border-radius-lg)", padding: "2rem", textAlign: "center", marginBottom: "1rem", background: "var(--color-background-secondary)" }}>
+            <i className="ti ti-table-import" style={{ fontSize: 32, color: "var(--color-text-secondary)", display: "block", marginBottom: 8 }} aria-hidden="true" />
+            <p style={{ margin: "0 0 12px", color: "var(--color-text-secondary)", fontSize: 14 }}>Drag & drop Excel files here, or</p>
+            <label style={{ cursor: "pointer" }}>
+              <input type="file" accept=".xlsx,.xls" multiple style={{ display: "none" }} onChange={handleDrop} />
+              <span style={{ padding: "8px 20px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", fontSize: 13, background: "var(--color-background-primary)" }}>Browse files</span>
+            </label>
+          </div>
+
+          {files.length > 0 && (
+            <div style={{ marginBottom: "1rem" }}>
+              {files.map(f => (
+                <div key={f.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 6, background: "var(--color-background-primary)" }}>
+                  <i className="ti ti-file-spreadsheet" style={{ fontSize: 18, color: "#1a7a4a" }} aria-hidden="true" />
+                  <span style={{ flex: 1, fontSize: 13 }}>{f.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{Object.keys(f.sheets).length} sheet(s)</span>
+                  <button onClick={() => removeFile(f.name)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                    <i className="ti ti-x" style={{ fontSize: 16, color: "var(--color-text-secondary)" }} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button disabled={files.length < 1} onClick={() => setStep(2)} style={{ padding: "9px 24px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: files.length < 1 ? "not-allowed" : "pointer", opacity: files.length < 1 ? 0.5 : 1 }}>
+            Next: Configure →
+          </button>
+        </div>
+      )}
+
+      {/* Step 2: Configure */}
+      {step === 2 && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: "1.5rem" }}>
+            {/* Source */}
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "1rem" }}>
+              <p style={{ fontWeight: 500, fontSize: 14, margin: "0 0 10px", color: "var(--color-text-primary)" }}>
+                <i className="ti ti-arrow-right" style={{ marginRight: 6, color: "#1a7a4a" }} aria-hidden="true" />Source (lookup from)
+              </p>
+              <select value={sourceFile?.name || ""} onChange={e => { setSourceFile(files.find(f => f.name === e.target.value) || null); setSourceSheet(""); setSourceFields([]); }} style={{ width: "100%", marginBottom: 8, fontSize: 13, padding: "6px 8px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
+                <option value="">Select file…</option>
+                {files.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+              {sourceFile && (
+                <select value={sourceSheet} onChange={e => { setSourceSheet(e.target.value); setSourceFields([]); }} style={{ width: "100%", marginBottom: 8, fontSize: 13, padding: "6px 8px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
+                  <option value="">Select sheet…</option>
+                  {Object.keys(sourceFile.sheets).map(s => <option key={s}>{s}</option>)}
+                </select>
+              )}
+              {srcCols.length > 0 && (
+                <>
+                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 6px" }}>Pick source field(s):</p>
+                  <div style={{ maxHeight: 160, overflowY: "auto", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", padding: "4px" }}>
+                    {srcCols.map(col => (
+                      <label key={col} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 4, fontSize: 13, background: sourceFields.includes(col) ? "var(--color-background-info)" : "transparent" }}>
+                        <input type="checkbox" checked={sourceFields.includes(col)} onChange={() => toggleField(sourceFields, setSourceFields, col)} />
+                        {col}
+                      </label>
+                    ))}
+                  </div>
+                  {sourceFields.length > 0 && <p style={{ fontSize: 12, color: "var(--color-text-info)", margin: "6px 0 0" }}>Selected: {sourceFields.join(" + ")}</p>}
+                </>
+              )}
+            </div>
+
+            {/* Target */}
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "1rem" }}>
+              <p style={{ fontWeight: 500, fontSize: 14, margin: "0 0 10px", color: "var(--color-text-primary)" }}>
+                <i className="ti ti-search" style={{ marginRight: 6, color: "#185FA5" }} aria-hidden="true" />Target (search in)
+              </p>
+              <select value={targetFile?.name || ""} onChange={e => { setTargetFile(files.find(f => f.name === e.target.value) || null); setTargetSheet(""); setTargetFields([]); }} style={{ width: "100%", marginBottom: 8, fontSize: 13, padding: "6px 8px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
+                <option value="">Select file…</option>
+                {files.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+              {targetFile && (
+                <select value={targetSheet} onChange={e => { setTargetSheet(e.target.value); setTargetFields([]); }} style={{ width: "100%", marginBottom: 8, fontSize: 13, padding: "6px 8px", border: "0.5px solid var(--color-border-secondary)", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
+                  <option value="">Select sheet…</option>
+                  {Object.keys(targetFile.sheets).map(s => <option key={s}>{s}</option>)}
+                </select>
+              )}
+              {tgtCols.length > 0 && (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    {["all", "select"].map(m => (
+                      <label key={m} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                        <input type="radio" name="tgtMode" value={m} checked={targetMode === m} onChange={() => setTargetMode(m)} />
+                        {m === "all" ? "All fields" : "Select fields"}
+                      </label>
+                    ))}
+                  </div>
+                  {targetMode === "select" && (
+                    <div style={{ maxHeight: 160, overflowY: "auto", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", padding: "4px" }}>
+                      {tgtCols.map(col => (
+                        <label key={col} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 6px", cursor: "pointer", borderRadius: 4, fontSize: 13, background: targetFields.includes(col) ? "var(--color-background-info)" : "transparent" }}>
+                          <input type="checkbox" checked={targetFields.includes(col)} onChange={() => toggleField(targetFields, setTargetFields, col)} />
+                          {col}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {targetMode === "all" && <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>{tgtCols.length} fields will be checked</p>}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep(1)} style={{ padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: "pointer" }}>← Back</button>
+            <button disabled={!canRun} onClick={() => setStep(3)} style={{ padding: "9px 24px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: !canRun ? "not-allowed" : "pointer", opacity: !canRun ? 0.5 : 1 }}>Next: Cleaning →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Cleaning & Fuzzy options */}
+      {step === 3 && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: "1.5rem" }}>
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "1rem" }}>
+              <p style={{ fontWeight: 500, fontSize: 14, margin: "0 0 10px" }}>Data cleaning steps</p>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 10px" }}>Applied before clean-match comparison</p>
+              {CLEAN_OPTIONS.map(opt => (
+                <label key={opt.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", cursor: "pointer", fontSize: 13 }}>
+                  <input type="checkbox" checked={!!cleanOpts[opt.key]} onChange={e => setCleanOpts(p => ({ ...p, [opt.key]: e.target.checked }))} />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "1rem" }}>
+              <p style={{ fontWeight: 500, fontSize: 14, margin: "0 0 10px" }}>Fuzzy match options</p>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 12px" }}>Uses Levenshtein edit-distance similarity</p>
+              <label style={{ fontSize: 13, display: "block", marginBottom: 6 }}>Min similarity threshold: <strong>{fuzzyThreshold}%</strong></label>
+              <input type="range" min={40} max={99} step={1} value={fuzzyThreshold} onChange={e => setFuzzyThreshold(Number(e.target.value))} style={{ width: "100%", marginBottom: 16 }} />
+              <label style={{ fontSize: 13, display: "block", marginBottom: 6 }}>Max fuzzy examples per field: <strong>{maxFuzzyExamples}</strong></label>
+              <input type="range" min={1} max={10} step={1} value={maxFuzzyExamples} onChange={e => setMaxFuzzyExamples(Number(e.target.value))} style={{ width: "100%" }} />
+              <div style={{ marginTop: 16, padding: "10px", background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                <strong>Match order:</strong><br />
+                1. Exact match (raw values)<br />
+                2. Match after cleaning ({Object.keys(cleanOpts).filter(k => cleanOpts[k]).length} steps)<br />
+                3. Fuzzy match (≥{fuzzyThreshold}% similarity)
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setStep(2)} style={{ padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: "pointer" }}>← Back</button>
+            <button onClick={runAnalysis} disabled={running} style={{ padding: "9px 28px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: running ? "wait" : "pointer", fontWeight: 500, background: "var(--color-background-info)", color: "var(--color-text-info)" }}>
+              {running ? "Running analysis…" : "Run analysis →"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Results */}
+      {step === 4 && results && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: "1.25rem" }}>
+            {[
+              { label: "Source fields", val: results.srcLabel },
+              { label: "Source file", val: results.srcFile.replace(/\.xlsx?$/i, "") },
+              { label: "Target file", val: results.tgtFile.replace(/\.xlsx?$/i, "") },
+            ].map(c => (
+              <div key={c.label} style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-md)", padding: "10px 12px" }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.val}</div>
+              </div>
+            ))}
+          </div>
+
+          {results.fieldResults.map(r => (
+            <div key={r.field} style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", marginBottom: 12, background: "var(--color-background-primary)", overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", gap: 8 }}>
+                <i className="ti ti-columns" style={{ fontSize: 16, color: "var(--color-text-secondary)" }} aria-hidden="true" />
+                <span style={{ fontWeight: 500, fontSize: 14 }}>{r.field}</span>
+                <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: "auto" }}>{r.totalSrc} source records</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
+                {[
+                  { label: "Exact match", count: r.exactCount, pct: r.exactPct, sub: "Raw value comparison" },
+                  { label: "After cleaning", count: r.exactCleanCount, pct: r.exactCleanPct, sub: results.activeCleans.length ? results.activeCleans.join(", ") : "No cleaning applied" },
+                  { label: `Fuzzy match (≥${fuzzyThreshold}%)`, count: r.fuzzyUniqSrc, pct: r.fuzzyPct, sub: `${r.fuzzyTotal} pair(s) found` },
+                ].map((m, i) => (
+                  <div key={i} style={{ padding: "12px 14px", borderRight: i < 2 ? "0.5px solid var(--color-border-tertiary)" : "none" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4 }}>{m.label}</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <span style={{ fontSize: 22, fontWeight: 500 }}>{m.count}</span>
+                      <span style={{ fontSize: 13, padding: "1px 7px", borderRadius: 20, fontWeight: 500, background: pctBg(m.pct), color: pctColor(m.pct) }}>{m.pct}%</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.sub}</div>
+                  </div>
+                ))}
+              </div>
+              {r.topFuzzy.length > 0 && (
+                <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", padding: "10px 14px" }}>
+                  <p style={{ fontSize: 12, fontWeight: 500, margin: "0 0 8px", color: "var(--color-text-secondary)" }}>Top fuzzy match examples</p>
+                  <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "var(--color-background-secondary)" }}>
+                        <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 500, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Src row</th>
+                        <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 500, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Source value</th>
+                        <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 500, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Tgt row</th>
+                        <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 500, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Target value</th>
+                        <th style={{ padding: "5px 8px", textAlign: "right", fontWeight: 500, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Similarity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.topFuzzy.map((m, i) => (
+                        <tr key={i} style={{ borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                          <td style={{ padding: "5px 8px", color: "var(--color-text-secondary)" }}>{m.srcRow}</td>
+                          <td style={{ padding: "5px 8px", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.srcVal}</td>
+                          <td style={{ padding: "5px 8px", color: "var(--color-text-secondary)" }}>{m.tgtRow}</td>
+                          <td style={{ padding: "5px 8px", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.tgtVal}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right" }}>
+                            <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 500, background: pctBg(m.pct), color: pctColor(m.pct) }}>{m.pct}%</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 8, marginTop: "1rem" }}>
+            <button onClick={() => setStep(2)} style={{ padding: "9px 18px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: "pointer" }}>
+              <i className="ti ti-refresh" style={{ marginRight: 6 }} aria-hidden="true" />Reconfigure
+            </button>
+            <button onClick={downloadExcel} style={{ padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: "pointer", background: "var(--color-background-success)", color: "var(--color-text-success)" }}>
+              <i className="ti ti-download" style={{ marginRight: 6 }} aria-hidden="true" />Download Excel
+            </button>
+            <button onClick={downloadWord} style={{ padding: "9px 20px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, cursor: "pointer", background: "var(--color-background-info)", color: "var(--color-text-info)" }}>
+              <i className="ti ti-file-word" style={{ marginRight: 6 }} aria-hidden="true" />Download Word
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
