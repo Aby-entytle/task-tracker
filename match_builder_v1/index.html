@@ -19,11 +19,11 @@ function readXlsx(file) {
 }
 
 const CLEANS = [
-  { key: "trim",    label: "Remove extra spaces",       fn: v => v.trim() },
-  { key: "lower",   label: "Ignore UPPER/lower case",   fn: v => v.toLowerCase() },
-  { key: "hyphens", label: "Remove hyphens  —",         fn: v => v.replace(/-/g, "") },
-  { key: "dots",    label: "Remove dots  .",             fn: v => v.replace(/\./g, "") },
-  { key: "slashes", label: "Remove slashes  / \\",      fn: v => v.replace(/[\/\\]/g, "") },
+  { key: "trim",    label: "Remove extra spaces",        fn: v => v.trim() },
+  { key: "lower",   label: "Ignore UPPER/lower case",    fn: v => v.toLowerCase() },
+  { key: "hyphens", label: "Remove hyphens  —",          fn: v => v.replace(/-/g, "") },
+  { key: "dots",    label: "Remove dots  .",              fn: v => v.replace(/\./g, "") },
+  { key: "slashes", label: "Remove slashes  / \\",       fn: v => v.replace(/[\/\\]/g, "") },
   { key: "zeros",   label: "Remove leading zeros  007→7",fn: v => v.replace(/^0+/, "") },
   { key: "special", label: "Keep letters & numbers only",fn: v => v.replace(/[^a-zA-Z0-9]/g, "") },
 ];
@@ -92,7 +92,6 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [drag, setDrag]   = useState(false);
 
-  // step 2
   const [srcFile, setSrcFile]     = useState(null);
   const [srcSheet, setSrcSheet]   = useState("");
   const [srcFields, setSrcFields] = useState([]);
@@ -101,7 +100,6 @@ export default function App() {
   const [tgtFields, setTgtFields] = useState([]);
   const [tgtAll, setTgtAll]       = useState(true);
 
-  // step 3
   const [cleanKeys, setCleanKeys]   = useState(["trim", "lower"]);
   const [threshold, setThreshold]   = useState(70);
   const [examples, setExamples]     = useState(3);
@@ -109,7 +107,6 @@ export default function App() {
   const [results, setResults] = useState(null);
   const [running, setRunning] = useState(false);
 
-  // ── file upload
   const addFiles = useCallback(async list => {
     const xl = Array.from(list).filter(f => /\.xlsx?$/i.test(f.name));
     if (!xl.length) return;
@@ -127,7 +124,6 @@ export default function App() {
   const activeTgtCols = tgtAll ? tgtCols : tgtFields;
   const canNext2 = srcFile && srcSheet && srcFields.length && tgtFile && tgtSheet && (tgtAll || tgtFields.length);
 
-  // ── run
   const runAnalysis = () => {
     setRunning(true);
     setTimeout(() => {
@@ -168,7 +164,6 @@ export default function App() {
     }, 60);
   };
 
-  // ── export excel
   const dlExcel = () => {
     const wb = XLSX.utils.book_new();
     const summary = [
@@ -195,7 +190,6 @@ export default function App() {
     XLSX.writeFile(wb, "match_analysis.xlsx");
   };
 
-  // ── export word
   const dlWord = () => {
     const rows = results.fieldResults.map(r =>
       `<tr><td>${r.field}</td><td>${r.total}</td><td>${r.exact} (${r.exactPct}%)</td><td>${r.cleaned} (${r.cleanedPct}%)</td><td>${r.fuzzyUniq} (${r.fuzzyPct}%)</td></tr>`).join("");
@@ -228,7 +222,6 @@ export default function App() {
     a.click();
   };
 
-  // ── step headers
   const steps = ["Upload files", "Choose fields", "Matching options", "Results"];
 
   return (
@@ -248,12 +241,11 @@ export default function App() {
         ))}
       </div>
 
-      {/* ── STEP 1 ── */}
+      {/* STEP 1 */}
       {step === 1 && (
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 6px" }}>Upload your Excel files</p>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 1.25rem" }}>You can upload 2 or more .xlsx files. One will be your source (what you look up) and one will be your target (where you search).</p>
-
           <div
             onDrop={e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
             onDragOver={e => { e.preventDefault(); setDrag(true); }}
@@ -266,7 +258,6 @@ export default function App() {
               <span style={{ padding: "9px 22px", borderRadius: "var(--border-radius-md)", border: "0.5px solid var(--color-border-secondary)", fontSize: 13, background: "var(--color-background-primary)", cursor: "pointer" }}>Browse</span>
             </label>
           </div>
-
           {files.map(f => (
             <div key={f.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", marginBottom: 8, background: "var(--color-background-primary)" }}>
               <i className="ti ti-file-spreadsheet" style={{ fontSize: 20, color: "#3B6D11" }} aria-hidden="true" />
@@ -279,20 +270,17 @@ export default function App() {
               </button>
             </div>
           ))}
-
           <div style={{ marginTop: "1.25rem" }}>
             <Btn primary disabled={files.length < 1} onClick={() => setStep(2)}>Continue →</Btn>
           </div>
         </div>
       )}
 
-      {/* ── STEP 2 ── */}
+      {/* STEP 2 */}
       {step === 2 && (
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 6px" }}>Choose what to compare</p>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 1.5rem" }}>Pick which field(s) from the source file to look up, then choose which fields in the target file to search through.</p>
-
-          {/* Source */}
           <Card style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -300,13 +288,11 @@ export default function App() {
               </div>
               <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>Source — the values you want to look up</p>
             </div>
-
             <Label>Which file?</Label>
             <select value={srcFile?.name || ""} onChange={e => { setSrcFile(files.find(f => f.name === e.target.value) || null); setSrcSheet(""); setSrcFields([]); }} style={{ width: "100%", marginBottom: 12 }}>
               <option value="">Select a file…</option>
               {files.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
             </select>
-
             {srcFile && <>
               <Label>Which sheet?</Label>
               <select value={srcSheet} onChange={e => { setSrcSheet(e.target.value); setSrcFields([]); }} style={{ width: "100%", marginBottom: 12 }}>
@@ -314,7 +300,6 @@ export default function App() {
                 {Object.keys(srcFile.sheets).map(s => <option key={s}>{s}</option>)}
               </select>
             </>}
-
             {srcCols.length > 0 && <>
               <Label>Which column(s) hold the values to look up? (tick one or more)</Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -328,8 +313,6 @@ export default function App() {
               {srcFields.length > 0 && <p style={{ fontSize: 12, color: "var(--color-text-info)", margin: "10px 0 0" }}>Looking up: <strong>{srcFields.join(" + ")}</strong></p>}
             </>}
           </Card>
-
-          {/* Target */}
           <Card style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem" }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -337,13 +320,11 @@ export default function App() {
               </div>
               <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>Target — where to search for matches</p>
             </div>
-
             <Label>Which file?</Label>
             <select value={tgtFile?.name || ""} onChange={e => { setTgtFile(files.find(f => f.name === e.target.value) || null); setTgtSheet(""); setTgtFields([]); }} style={{ width: "100%", marginBottom: 12 }}>
               <option value="">Select a file…</option>
               {files.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
             </select>
-
             {tgtFile && <>
               <Label>Which sheet?</Label>
               <select value={tgtSheet} onChange={e => { setTgtSheet(e.target.value); setTgtFields([]); }} style={{ width: "100%", marginBottom: 12 }}>
@@ -351,7 +332,6 @@ export default function App() {
                 {Object.keys(tgtFile.sheets).map(s => <option key={s}>{s}</option>)}
               </select>
             </>}
-
             {tgtCols.length > 0 && <>
               <Label>Which columns should be searched?</Label>
               <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
@@ -374,7 +354,6 @@ export default function App() {
               {tgtAll && <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>Will search all {tgtCols.length} columns</p>}
             </>}
           </Card>
-
           <div style={{ display: "flex", gap: 10 }}>
             <Btn onClick={() => setStep(1)}>← Back</Btn>
             <Btn primary disabled={!canNext2} onClick={() => setStep(3)}>Continue →</Btn>
@@ -382,13 +361,11 @@ export default function App() {
         </div>
       )}
 
-      {/* ── STEP 3 ── */}
+      {/* STEP 3 */}
       {step === 3 && (
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 6px" }}>Matching options</p>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 1.5rem" }}>The tool runs three checks in order. Configure how each one works below.</p>
-
-          {/* how it works */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
             {[
               { n: 1, icon: "ti-equal", title: "Exact match", desc: "Identical values — e.g. AB-123 = AB-123" },
@@ -402,7 +379,6 @@ export default function App() {
               </div>
             ))}
           </div>
-
           <Card style={{ marginBottom: 16 }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 4px" }}>Step 2 — data cleaning</p>
             <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 14px" }}>Tick the cleanups to apply before the clean-match comparison:</p>
@@ -415,7 +391,6 @@ export default function App() {
               ))}
             </div>
           </Card>
-
           <Card style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 14, fontWeight: 500, margin: "0 0 14px" }}>Step 3 — fuzzy match settings</p>
             <div style={{ marginBottom: 16 }}>
@@ -436,7 +411,6 @@ export default function App() {
               </div>
             </div>
           </Card>
-
           <div style={{ display: "flex", gap: 10 }}>
             <Btn onClick={() => setStep(2)}>← Back</Btn>
             <Btn primary onClick={runAnalysis} disabled={running}>{running ? "Running…" : "Run analysis →"}</Btn>
@@ -444,15 +418,13 @@ export default function App() {
         </div>
       )}
 
-      {/* ── STEP 4 ── */}
+      {/* STEP 4 */}
       {step === 4 && results && (
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: "0 0 4px" }}>Results</p>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 1.25rem" }}>
             Comparing <strong>{results.srcLabel}</strong> from {results.srcFile} against {results.tgtFile}
           </p>
-
-          {/* legend */}
           <div style={{ display: "flex", gap: 12, marginBottom: 16, fontSize: 12 }}>
             {[["#EAF3DE","#3B6D11","≥ 60%"], ["#FAEEDA","#854F0B","30–59%"], ["#FCEBEB","#A32D2D","< 30%"]].map(([bg,col,label]) => (
               <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--color-text-secondary)" }}>
@@ -460,16 +432,13 @@ export default function App() {
               </span>
             ))}
           </div>
-
           {results.fieldResults.map(r => (
             <Card key={r.field} style={{ marginBottom: 14 }}>
-              {/* field name + summary numbers */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                 <i className="ti ti-columns" style={{ fontSize: 16, color: "var(--color-text-secondary)" }} aria-hidden="true" />
                 <span style={{ fontWeight: 500, fontSize: 14 }}>{r.field}</span>
                 <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: "auto" }}>{r.total} source values</span>
               </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: r.topFuzzy.length ? 14 : 0 }}>
                 {[
                   { label: "Exact match",    n: r.exact,    pct: r.exactPct,   sub: "character-for-character" },
@@ -486,7 +455,6 @@ export default function App() {
                   </div>
                 ))}
               </div>
-
               {r.topFuzzy.length > 0 && (
                 <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", paddingTop: 12 }}>
                   <p style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", margin: "0 0 8px" }}>Top fuzzy matches (row numbers from original files)</p>
@@ -516,7 +484,6 @@ export default function App() {
               )}
             </Card>
           ))}
-
           <div style={{ display: "flex", gap: 10, marginTop: "1.25rem", flexWrap: "wrap" }}>
             <Btn onClick={() => setStep(2)}>← Change fields</Btn>
             <button onClick={dlExcel} style={{ padding: "10px 20px", borderRadius: "var(--border-radius-md)", fontSize: 13, cursor: "pointer", border: "0.5px solid #C0DD97", background: "#EAF3DE", color: "#3B6D11", fontWeight: 500 }}>
