@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service Report Extractor</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #0f766e;
+      --accent-light: #ccfbf1;
+      --warning: #fff7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f766e, #0891b2);
+      color: white;
+      padding: 24px 32px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      padding: 20px;
+      min-height: calc(100vh - 96px);
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .sidebar {
+      padding: 18px;
+      height: fit-content;
+    }
+
+    .upload-box {
+      border: 2px dashed #99f6e4;
+      border-radius: 14px;
+      padding: 18px;
+      background: #f0fdfa;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .file-item {
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .file-item:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .file-item.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+
+    .file-name {
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .file-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    main {
+      padding: 22px;
+    }
+
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-light);
+      color: #115e59;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.secondary {
+      background: #475569;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    section {
+      margin-bottom: 24px;
+    }
+
+    section h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      background: white;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 700;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 70px 20px;
+      color: var(--muted);
+    }
+
+    .note {
+      background: var(--warning);
+      border: 1px solid #fed7aa;
+      padding: 12px;
+      border-radius: 12px;
+      color: #7c2d12;
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 850px) {
+      .app { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Service Report Extraction Tool</h1>
+    <p>Upload one or multiple service reports. Select a file to highlight it and view structured service details.</p>
+  </header>
+
+  <div class="app">
+    <aside class="panel sidebar">
+      <div class="upload-box">
+        <strong>Upload Service Reports</strong>
+        <p style="font-size:13px;color:#475569;margin-bottom:0;">PDF, DOC, DOCX, TXT supported for listing. Extraction can be connected to OCR/API later.</p>
+        <input id="fileInput" type="file" multiple accept=".pdf,.doc,.docx,.txt" />
+      </div>
+
+      <h3>Uploaded Files</h3>
+      <div id="fileList" class="file-list"></div>
+    </aside>
+
+    <main class="panel">
+      <div class="top-actions">
+        <div id="selectedBadge" class="badge">No file selected</div>
+        <div>
+          <button id="exportJsonBtn" disabled>Export JSON</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+      </div>
+
+      <div class="note">
+        This HTML version includes the screen structure, file upload, selected-file highlighting, and structured display. The sample extraction below is populated for the Siemens/Sabic report. For new files, connect the <code>extractServiceReport()</code> function to OCR, an LLM API, or your backend parser.
+      </div>
+
+      <div id="detailsArea" class="empty">Upload and select a service report to view extracted details.</div>
+    </main>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const detailsArea = document.getElementById('detailsArea');
+    const selectedBadge = document.getElementById('selectedBadge');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let files = [];
+    let selectedIndex = null;
+    let selectedData = null;
+
+    const sampleSabicExtraction = {
+      customerDetails: {
+        'Customer Name': 'Sabic Polyolefine GmbH',
+        'Address': 'Pawiker Straße 30, 45896 Gelsenkirchen',
+        'Country': 'Germany',
+        'Organization ID': 'A4050870'
+      },
+      customerContactDetails: {
+        'Contact Name': 'Torsten Knauerhase',
+        'Email': 'Torsten.knauerhase@sabic.com',
+        'Phone': 'Not specified'
+      },
+      siemensServiceEngineer: {
+        'Engineer Name': 'Martin Heß',
+        'Department': 'LDA CS SD D2',
+        'Report Date': '24-Mar-2022',
+        'Service Period': '21-Mar-2022 to 22-Mar-2022',
+        'Service Requestor': 'Zhao, Yunfeng',
+        'Requestor Phone': '+49 172 2690693'
+      },
+      serviceDetails: {
+        'Service Type': 'Maintenance / Revision',
+        'Equipment Name': 'SINAMICS GM150 Air-Cooled Converter',
+        'Equipment Category': 'Medium Voltage Drive / Frequency Converter',
+        'MLFB / Article Number': '6SL3810-2LM34-6AA1-Z',
+        'Serial Number': 'N-K25017471020001',
+        'Reason for Service': 'Scheduled maintenance of SINAMICS GM150 air-cooled drive'
+      },
+      spareParts: [
+        {
+          'Spare Part': 'Main Fans',
+          'Required': 'Yes',
+          'Replaced During Visit': 'No',
+          'Quantity': 'Not specified',
+          'Price': 'Not mentioned',
+          'Available On Site': 'No',
+          'Current Status': 'Ordered spare parts had not arrived; replacement could not be performed',
+          'Future Action': 'Replace during next maintenance visit. Air duct removal and scaffolding required.'
+        },
+        {
+          'Spare Part': 'Filter Mats',
+          'Required': 'Yes',
+          'Replaced During Visit': 'Partially; temporary substitute installed',
+          'Quantity': 'Not specified',
+          'Price': 'Not mentioned',
+          'Available On Site': 'No',
+          'Current Status': 'Original replacement mats unavailable. Customer-supplied filter material was cut and installed temporarily.',
+          'Future Action': 'Replace with proper spare parts during planned maintenance in May 2022.'
+        },
+        {
+          'Spare Part': 'General Spare Parts Inventory',
+          'Required': 'Yes',
+          'Replaced During Visit': 'N/A',
+          'Quantity': 'Not specified',
+          'Price': 'Not mentioned',
+          'Available On Site': 'No',
+          'Current Status': 'Customer has no spare parts inventory on site.',
+          'Future Action': 'Prepare recommended spare parts list after customer provides complete converter inventory.'
+        }
+      ]
+    };
+
+    fileInput.addEventListener('change', event => {
+      files = Array.from(event.target.files).map(file => ({
+        file,
+        extraction: extractServiceReport(file)
+      }));
+      selectedIndex = files.length ? 0 : null;
+      renderFileList();
+      renderSelectedDetails();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      files = [];
+      selectedIndex = null;
+      selectedData = null;
+      fileInput.value = '';
+      renderFileList();
+      renderSelectedDetails();
+    });
+
+    exportJsonBtn.addEventListener('click', () => {
+      if (!selectedData) return;
+      const blob = new Blob([JSON.stringify(selectedData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'service-report-extraction.json';
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    function renderFileList() {
+      fileList.innerHTML = '';
+
+      if (!files.length) {
+        fileList.innerHTML = '<p style="color:#6b7280;font-size:14px;">No files uploaded yet.</p>';
+        return;
+      }
+
+      files.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'file-item' + (index === selectedIndex ? ' active' : '');
+        div.innerHTML = `
+          <div class="file-name">${escapeHtml(item.file.name)}</div>
+          <div class="file-meta">${formatFileSize(item.file.size)} • ${item.file.type || 'Unknown type'}</div>
+        `;
+        div.addEventListener('click', () => {
+          selectedIndex = index;
+          renderFileList();
+          renderSelectedDetails();
+        });
+        fileList.appendChild(div);
+      });
+    }
+
+    function renderSelectedDetails() {
+      if (selectedIndex === null || !files[selectedIndex]) {
+        selectedBadge.textContent = 'No file selected';
+        exportJsonBtn.disabled = true;
+        detailsArea.className = 'empty';
+        detailsArea.innerHTML = 'Upload and select a service report to view extracted details.';
+        return;
+      }
+
+      const selected = files[selectedIndex];
+      selectedData = selected.extraction;
+      selectedBadge.textContent = 'Selected: ' + selected.file.name;
+      exportJsonBtn.disabled = false;
+      detailsArea.className = '';
+
+      detailsArea.innerHTML = `
+        ${renderSection('Customer Details', selectedData.customerDetails)}
+        ${renderSection('Customer Contact Details', selectedData.customerContactDetails)}
+        ${renderSection('Siemens Service Engineer', selectedData.siemensServiceEngineer)}
+        ${renderSection('Service Details', selectedData.serviceDetails)}
+        ${renderSparePartsTable(selectedData.spareParts)}
+      `;
+    }
+
+    function renderSection(title, data) {
+      const rows = Object.entries(data || {}).map(([field, value]) => `
+        <tr><th style="width:260px;">${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>
+      `).join('');
+
+      return `
+        <section>
+          <h2>${escapeHtml(title)}</h2>
+          <table>${rows}</table>
+        </section>
+      `;
+    }
+
+    function renderSparePartsTable(parts) {
+      if (!parts || !parts.length) {
+        return `
+          <section>
+            <h2>Spare Parts Information</h2>
+            <table><tr><td>No spare parts found.</td></tr></table>
+          </section>
+        `;
+      }
+
+      const headers = Object.keys(parts[0]);
+      const headerHtml = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+      const rows = parts.map(part => `
+        <tr>${headers.map(h => `<td>${escapeHtml(part[h])}</td>`).join('')}</tr>
+      `).join('');
+
+      return `
+        <section>
+          <h2>Spare Parts Information</h2>
+          <table>
+            <thead><tr>${headerHtml}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </section>
+      `;
+    }
+
+    function extractServiceReport(file) {
+      const name = file.name.toLowerCase();
+
+      // Demo rule: if the uploaded file looks like the Siemens/Sabic report,
+      // show the extracted values from the provided document.
+      if (name.includes('sabic') || name.includes('lda') || name.includes('service')) {
+        return sampleSabicExtraction;
+      }
+
+      // Placeholder structure for new reports until backend parsing is connected.
+      return {
+        customerDetails: {
+          'Customer Name': 'Pending extraction',
+          'Address': 'Pending extraction',
+          'Country': 'Pending extraction',
+          'Organization ID': 'Pending extraction'
+        },
+        customerContactDetails: {
+          'Contact Name': 'Pending extraction',
+          'Email': 'Pending extraction',
+          'Phone': 'Pending extraction'
+        },
+        siemensServiceEngineer: {
+          'Engineer Name': 'Pending extraction',
+          'Department': 'Pending extraction',
+          'Report Date': 'Pending extraction',
+          'Service Period': 'Pending extraction',
+          'Service Requestor': 'Pending extraction',
+          'Requestor Phone': 'Pending extraction'
+        },
+        serviceDetails: {
+          'Service Type': 'Pending extraction',
+          'Equipment Name': 'Pending extraction',
+          'Equipment Category': 'Pending extraction',
+          'MLFB / Article Number': 'Pending extraction',
+          'Serial Number': 'Pending extraction',
+          'Reason for Service': 'Pending extraction'
+        },
+        spareParts: [
+          {
+            'Spare Part': 'Pending extraction',
+            'Required': 'Pending extraction',
+            'Replaced During Visit': 'Pending extraction',
+            'Quantity': 'Pending extraction',
+            'Price': 'Pending extraction',
+            'Available On Site': 'Pending extraction',
+            'Current Status': 'Pending extraction',
+            'Future Action': 'Pending extraction'
+          }
+        ]
+      };
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
