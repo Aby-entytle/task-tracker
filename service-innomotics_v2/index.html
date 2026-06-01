@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service Report Extractor</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #0f766e;
+      --accent-light: #ccfbf1;
+      --danger: #b91c1c;
+      --warning-bg: #fff7ed;
+      --warning-border: #fed7aa;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f766e, #0891b2);
+      color: white;
+      padding: 24px 32px;
+    }
+
+    header h1 { margin: 0 0 8px; font-size: 26px; }
+    header p { margin: 0; opacity: 0.9; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      padding: 20px;
+      min-height: calc(100vh - 96px);
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .sidebar { padding: 18px; height: fit-content; }
+
+    .upload-box {
+      border: 2px dashed #99f6e4;
+      border-radius: 14px;
+      padding: 18px;
+      background: #f0fdfa;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    input[type="file"], input[type="text"] {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .file-item {
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .file-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+    .file-item.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+
+    .file-name { font-weight: 700; word-break: break-word; }
+    .file-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    .status {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .status.done { background: #dcfce7; color: #166534; }
+    .status.loading { background: #dbeafe; color: #1d4ed8; }
+    .status.error { background: #fee2e2; color: var(--danger); }
+
+    main { padding: 22px; overflow-x: auto; }
+
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-light);
+      color: #115e59;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.secondary { background: #475569; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    section { margin-bottom: 24px; }
+    section h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      background: white;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th { background: #f8fafc; font-weight: 700; }
+
+    .empty, .loading-view, .error-view {
+      text-align: center;
+      padding: 70px 20px;
+      color: var(--muted);
+    }
+
+    .error-view { color: var(--danger); }
+
+    .note {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      padding: 12px;
+      border-radius: 12px;
+      color: #7c2d12;
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+
+    code { background: rgba(0,0,0,0.07); padding: 2px 4px; border-radius: 4px; }
+
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Service Report Extraction Tool</h1>
+    <p>Upload one or multiple service reports. Select a file to highlight it and view extracted details.</p>
+  </header>
+
+  <div class="app">
+    <aside class="panel sidebar">
+      <div class="upload-box">
+        <strong>Upload Service Reports</strong>
+        <p style="font-size:13px;color:#475569;margin-bottom:0;">Each uploaded file is sent to your extraction backend and stored separately.</p>
+        <input id="fileInput" type="file" multiple accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" />
+      </div>
+
+      <label style="font-size:13px;font-weight:700;">Backend extraction endpoint</label>
+      <input id="backendUrl" type="text" value="/api/extract-service-report" />
+
+      <h3>Uploaded Files</h3>
+      <div id="fileList" class="file-list"></div>
+    </aside>
+
+    <main class="panel">
+      <div class="top-actions">
+        <div id="selectedBadge" class="badge">No file selected</div>
+        <div>
+          <button id="retryBtn" disabled>Retry Extraction</button>
+          <button id="exportJsonBtn" disabled>Export JSON</button>
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+      </div>
+
+      <div class="note">
+        Real connection enabled: every uploaded file is sent as <code>multipart/form-data</code> to the backend endpoint. The backend must return JSON in the schema used below.
+      </div>
+
+      <div id="detailsArea" class="empty">Upload and select a service report to view extracted details.</div>
+    </main>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const backendUrlInput = document.getElementById('backendUrl');
+    const fileList = document.getElementById('fileList');
+    const detailsArea = document.getElementById('detailsArea');
+    const selectedBadge = document.getElementById('selectedBadge');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let uploadedReports = [];
+    let selectedIndex = null;
+
+    fileInput.addEventListener('change', async event => {
+      const incomingFiles = Array.from(event.target.files);
+
+      for (const file of incomingFiles) {
+        uploadedReports.push({
+          file,
+          status: 'loading',
+          data: null,
+          error: null
+        });
+      }
+
+      if (selectedIndex === null && uploadedReports.length) selectedIndex = 0;
+      renderFileList();
+      renderSelectedDetails();
+
+      const startIndex = uploadedReports.length - incomingFiles.length;
+      incomingFiles.forEach((_, offset) => extractForIndex(startIndex + offset));
+    });
+
+    clearBtn.addEventListener('click', () => {
+      uploadedReports = [];
+      selectedIndex = null;
+      fileInput.value = '';
+      renderFileList();
+      renderSelectedDetails();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      if (selectedIndex !== null) extractForIndex(selectedIndex);
+    });
+
+    exportJsonBtn.addEventListener('click', () => {
+      const selected = getSelectedReport();
+      if (!selected?.data) return;
+
+      const blob = new Blob([JSON.stringify(selected.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = selected.file.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9-_]/gi, '_');
+      link.href = url;
+      link.download = `${safeName}_extraction.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    async function extractForIndex(index) {
+      const report = uploadedReports[index];
+      if (!report) return;
+
+      report.status = 'loading';
+      report.error = null;
+      report.data = null;
+      renderFileList();
+      if (selectedIndex === index) renderSelectedDetails();
+
+      try {
+        report.data = await extractServiceReport(report.file);
+        report.status = 'done';
+      } catch (error) {
+        report.status = 'error';
+        report.error = error.message || 'Extraction failed';
+      }
+
+      renderFileList();
+      if (selectedIndex === index) renderSelectedDetails();
+    }
+
+    async function extractServiceReport(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(backendUrlInput.value.trim(), {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(errorText || `Backend error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return normalizeExtraction(data);
+    }
+
+    function normalizeExtraction(data) {
+      return {
+        customerDetails: data.customerDetails || {},
+        customerContactDetails: data.customerContactDetails || {},
+        siemensServiceEngineer: data.siemensServiceEngineer || {},
+        serviceDetails: removeIgnoredServiceFields(data.serviceDetails || {}),
+        spareParts: Array.isArray(data.spareParts) ? data.spareParts : []
+      };
+    }
+
+    function removeIgnoredServiceFields(serviceDetails) {
+      const ignored = new Set([
+        'Operating Hours',
+        'Main Fan Runtime',
+        'Differential Pressure',
+        'GSV Test',
+        'Equipment Handover Date',
+        'Equipment Returned to Service'
+      ]);
+
+      return Object.fromEntries(
+        Object.entries(serviceDetails).filter(([key]) => !ignored.has(key))
+      );
+    }
+
+    function renderFileList() {
+      fileList.innerHTML = '';
+
+      if (!uploadedReports.length) {
+        fileList.innerHTML = '<p style="color:#6b7280;font-size:14px;">No files uploaded yet.</p>';
+        return;
+      }
+
+      uploadedReports.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'file-item' + (index === selectedIndex ? ' active' : '');
+        div.innerHTML = `
+          <div class="file-name">${escapeHtml(item.file.name)}</div>
+          <div class="file-meta">${formatFileSize(item.file.size)} • ${escapeHtml(item.file.type || 'Unknown type')}</div>
+          <span class="status ${item.status}">${statusLabel(item.status)}</span>
+        `;
+        div.addEventListener('click', () => {
+          selectedIndex = index;
+          renderFileList();
+          renderSelectedDetails();
+        });
+        fileList.appendChild(div);
+      });
+    }
+
+    function renderSelectedDetails() {
+      const selected = getSelectedReport();
+
+      if (!selected) {
+        selectedBadge.textContent = 'No file selected';
+        exportJsonBtn.disabled = true;
+        retryBtn.disabled = true;
+        detailsArea.className = 'empty';
+        detailsArea.innerHTML = 'Upload and select a service report to view extracted details.';
+        return;
+      }
+
+      selectedBadge.textContent = 'Selected: ' + selected.file.name;
+      retryBtn.disabled = selected.status === 'loading';
+      exportJsonBtn.disabled = !selected.data;
+
+      if (selected.status === 'loading') {
+        detailsArea.className = 'loading-view';
+        detailsArea.innerHTML = 'Extracting details from selected report...';
+        return;
+      }
+
+      if (selected.status === 'error') {
+        detailsArea.className = 'error-view';
+        detailsArea.innerHTML = `Extraction failed:<br><br>${escapeHtml(selected.error)}`;
+        return;
+      }
+
+      detailsArea.className = '';
+      detailsArea.innerHTML = `
+        ${renderSection('Customer Details', selected.data.customerDetails)}
+        ${renderSection('Customer Contact Details', selected.data.customerContactDetails)}
+        ${renderSection('Siemens Service Engineer', selected.data.siemensServiceEngineer)}
+        ${renderSection('Service Details', selected.data.serviceDetails)}
+        ${renderSparePartsTable(selected.data.spareParts)}
+      `;
+    }
+
+    function getSelectedReport() {
+      if (selectedIndex === null) return null;
+      return uploadedReports[selectedIndex] || null;
+    }
+
+    function renderSection(title, data) {
+      const entries = Object.entries(data || {});
+      const rows = entries.length
+        ? entries.map(([field, value]) => `<tr><th style="width:260px;">${escapeHtml(field)}</th><td>${escapeHtml(value)}</td></tr>`).join('')
+        : '<tr><td>No data extracted.</td></tr>';
+
+      return `
+        <section>
+          <h2>${escapeHtml(title)}</h2>
+          <table>${rows}</table>
+        </section>
+      `;
+    }
+
+    function renderSparePartsTable(parts) {
+      if (!parts || !parts.length) {
+        return `
+          <section>
+            <h2>Spare Parts Information</h2>
+            <table><tr><td>No spare parts found.</td></tr></table>
+          </section>
+        `;
+      }
+
+      const preferredHeaders = [
+        'Spare Part',
+        'Required',
+        'Replaced During Visit',
+        'Quantity',
+        'Price',
+        'Available On Site',
+        'Current Status',
+        'Future Action'
+      ];
+
+      const dynamicHeaders = [...new Set(parts.flatMap(part => Object.keys(part)))];
+      const headers = preferredHeaders.filter(h => dynamicHeaders.includes(h))
+        .concat(dynamicHeaders.filter(h => !preferredHeaders.includes(h)));
+
+      const headerHtml = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+      const rows = parts.map(part => `
+        <tr>${headers.map(h => `<td>${escapeHtml(part[h] ?? '')}</td>`).join('')}</tr>
+      `).join('');
+
+      return `
+        <section>
+          <h2>Spare Parts Information</h2>
+          <table>
+            <thead><tr>${headerHtml}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </section>
+      `;
+    }
+
+    function statusLabel(status) {
+      if (status === 'loading') return 'Extracting';
+      if (status === 'done') return 'Extracted';
+      if (status === 'error') return 'Failed';
+      return 'Pending';
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
+
+<!--
+BACKEND CONTRACT
+POST /api/extract-service-report
+Content-Type: multipart/form-data
+Field: file
+
+Expected JSON response:
+{
+  "customerDetails": {
+    "Customer Name": "...",
+    "Address": "...",
+    "Country": "...",
+    "Organization ID": "..."
+  },
+  "customerContactDetails": {
+    "Contact Name": "...",
+    "Email": "...",
+    "Phone": "..."
+  },
+  "siemensServiceEngineer": {
+    "Engineer Name": "...",
+    "Department": "...",
+    "Report Date": "...",
+    "Service Period": "...",
+    "Service Requestor": "...",
+    "Requestor Phone": "..."
+  },
+  "serviceDetails": {
+    "Service Type": "...",
+    "Equipment Name": "...",
+    "Equipment Category": "...",
+    "MLFB / Article Number": "...",
+    "Serial Number": "...",
+    "Reason for Service": "..."
+  },
+  "spareParts": [
+    {
+      "Spare Part": "...",
+      "Required": "...",
+      "Replaced During Visit": "...",
+      "Quantity": "...",
+      "Price": "...",
+      "Available On Site": "...",
+      "Current Status": "...",
+      "Future Action": "..."
+    }
+  ]
+}
+-->
