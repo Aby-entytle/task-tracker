@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Client Hub</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f7f7f5;
+    --bg-tertiary: #f0efeb;
+    --text-primary: #1a1a18;
+    --text-secondary: #6b6b67;
+    --text-tertiary: #a0a09c;
+    --border-tertiary: rgba(0,0,0,0.12);
+    --border-secondary: rgba(0,0,0,0.2);
+    --border-primary: rgba(0,0,0,0.3);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --accent: #534AB7;
+    --accent-light: #EEEDFE;
+    --accent-dark: #3C3489;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1e1c;
+      --bg-secondary: #252523;
+      --bg-tertiary: #2c2c2a;
+      --text-primary: #f0efe9;
+      --text-secondary: #a0a09a;
+      --text-tertiary: #6b6b65;
+      --border-tertiary: rgba(255,255,255,0.1);
+      --border-secondary: rgba(255,255,255,0.18);
+      --border-primary: rgba(255,255,255,0.28);
+      --accent-light: #2a2760;
+      --accent-dark: #a09de8;
+    }
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-tertiary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .app {
+    display: flex;
+    width: 980px;
+    max-width: 100%;
+    height: 720px;
+    border: 0.5px solid var(--border-tertiary);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    background: var(--bg-primary);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 230px;
+    min-width: 230px;
+    border-right: 0.5px solid var(--border-tertiary);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+  }
+
+  .sidebar-header {
+    padding: 16px 14px 12px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-header i { font-size: 18px; color: var(--accent); }
+  .sidebar-header h1 { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+
+  /* Timeline nav button in sidebar */
+  .sidebar-nav {
+    padding: 8px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+  }
+  .nav-btn {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    gap: 8px;
+    border: 0.5px solid transparent;
+    background: none;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    transition: background 0.1s, color 0.1s;
+    text-align: left;
+  }
+  .nav-btn:hover { background: var(--bg-primary); color: var(--text-primary); }
+  .nav-btn.active { background: var(--bg-primary); border-color: var(--border-secondary); color: var(--text-primary); font-weight: 500; }
+  .nav-btn i { font-size: 16px; flex-shrink: 0; }
+
+  .client-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .client-list::-webkit-scrollbar { width: 4px; }
+  .client-list::-webkit-scrollbar-track { background: transparent; }
+  .client-list::-webkit-scrollbar-thumb { background: var(--border-secondary); border-radius: 4px; }
+
+  .client-section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 4px 6px 6px;
+  }
+
+  .client-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    gap: 8px;
+    margin-bottom: 2px;
+    border: 0.5px solid transparent;
+    transition: background 0.1s;
+  }
+  .client-item:hover { background: var(--bg-primary); }
+  .client-item.active { background: var(--bg-primary); border-color: var(--border-secondary); }
+
+  .client-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; flex-shrink: 0;
+  }
+  .client-name { font-size: 14px; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .del-btn {
+    opacity: 0; background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); padding: 3px; border-radius: 4px;
+    font-size: 14px; line-height: 1; transition: opacity 0.15s;
+  }
+  .client-item:hover .del-btn { opacity: 1; }
+  .del-btn:hover { color: #A32D2D; background: var(--bg-secondary); }
+
+  .add-client-area {
+    padding: 10px 12px 14px;
+    border-top: 0.5px solid var(--border-tertiary);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .add-client-area input {
+    width: 100%; font-size: 13px; padding: 7px 10px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+  .add-client-area input::placeholder { color: var(--text-tertiary); }
+  .add-client-area input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(83,74,183,0.15); }
+
+  .btn-add {
+    width: 100%; padding: 7px; font-size: 13px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    cursor: pointer; background: var(--bg-primary); color: var(--text-primary);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: var(--font-sans); transition: background 0.1s;
+  }
+  .btn-add:hover { background: var(--bg-tertiary); }
+
+  /* ── Main ── */
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; background: var(--bg-primary);
+  }
+  .main-header {
+    padding: 14px 20px 13px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .client-title { font-size: 17px; font-weight: 500; color: var(--text-primary); }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 2px;
+    padding: 10px 20px 0;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    overflow-x: auto;
+  }
+  .tabs::-webkit-scrollbar { height: 0; }
+  .tab {
+    padding: 7px 13px; font-size: 13px; cursor: pointer;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    color: var(--text-secondary);
+    border: 0.5px solid transparent; border-bottom: none;
+    position: relative; top: 1px;
+    white-space: nowrap; display: flex; align-items: center; gap: 6px;
+    transition: background 0.1s, color 0.1s;
+    font-family: var(--font-sans); background: none;
+  }
+  .tab:hover { color: var(--text-primary); background: var(--bg-secondary); }
+  .tab.active {
+    color: var(--text-primary); background: var(--bg-primary);
+    border-color: var(--border-tertiary); font-weight: 500;
+  }
+
+  .tab-content {
+    flex: 1; overflow-y: auto; padding: 18px 20px;
+  }
+  .tab-content::-webkit-scrollbar { width: 4px; }
+  .tab-content::-webkit-scrollbar-track { background: transparent; }
+  .tab-content::-webkit-scrollbar-thumb { background: var(--border-secondary); border-radius: 4px; }
+
+  .section-label {
+    font-size: 11px; font-weight: 500; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+  }
+
+  .add-row { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .add-row input {
+    flex: 1; font-size: 13px; padding: 7px 10px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+  .add-row input::placeholder { color: var(--text-tertiary); }
+  .add-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(83,74,183,0.15); }
+
+  .btn-primary {
+    padding: 7px 14px; font-size: 13px;
+    border: 0.5px solid var(--accent);
+    border-radius: var(--radius-md); cursor: pointer;
+    background: var(--accent-light); color: var(--accent-dark);
+    white-space: nowrap; font-weight: 500;
+    font-family: var(--font-sans); display: flex; align-items: center; gap: 5px;
+    transition: background 0.1s;
+  }
+  .btn-primary:hover { background: #CECBF6; }
+
+  .link-card {
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-tertiary);
+    border-radius: var(--radius-md);
+    padding: 10px 12px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+    transition: border-color 0.1s;
+  }
+  .link-card:hover { border-color: var(--border-secondary); }
+  .link-info { flex: 1; min-width: 0; }
+  .link-title { font-size: 14px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .link-url { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .link-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  .icon-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); padding: 5px;
+    border-radius: var(--radius-md); font-size: 16px; line-height: 1;
+    transition: color 0.1s, background 0.1s;
+  }
+  .icon-btn:hover { color: var(--text-primary); background: var(--bg-primary); }
+  .icon-btn.danger:hover { color: #A32D2D; background: #FCEBEB; }
+
+  .badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    font-weight: 500; flex-shrink: 0;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .badge-meeting { background: #E6F1FB; color: #0C447C; }
+  .badge-drive   { background: #EAF3DE; color: #27500A; }
+  .badge-rec     { background: #FAECE7; color: #712B13; }
+  .badge-doc     { background: #FAEEDA; color: #633806; }
+  .badge-daily   { background: #EEEDFE; color: #3C3489; }
+
+  .empty { text-align: center; padding: 50px 0; color: var(--text-secondary); font-size: 14px; }
+  .empty i { font-size: 36px; display: block; margin-bottom: 10px; opacity: .35; }
+
+  .welcome {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; color: var(--text-secondary); gap: 12px;
+  }
+  .welcome i { font-size: 48px; opacity: .25; }
+  .welcome p { font-size: 15px; }
+  .welcome small { font-size: 13px; color: var(--text-tertiary); }
+
+  .no-clients {
+    padding: 16px 12px; font-size: 13px;
+    color: var(--text-tertiary); text-align: center; line-height: 1.6;
+  }
+
+  /* ══════════════════════════════════════
+     GLOBAL TIMELINE PAGE
+  ══════════════════════════════════════ */
+  .timeline-page {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .timeline-page-header {
+    padding: 14px 20px 13px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .timeline-page-header h2 { font-size: 17px; font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+  .timeline-page-header h2 i { color: var(--accent); font-size: 20px; }
+
+  /* Add event form */
+  .timeline-add-bar {
+    padding: 14px 20px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    background: var(--bg-secondary);
+  }
+  .timeline-add-bar .form-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .timeline-add-bar select,
+  .timeline-add-bar input {
+    font-size: 13px; padding: 7px 10px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+  .timeline-add-bar select:focus,
+  .timeline-add-bar input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(83,74,183,0.15);
+  }
+  .tl-sel-client { min-width: 130px; }
+  .tl-inp-date   { width: 145px; }
+  .tl-inp-event  { flex: 1; min-width: 150px; }
+  .tl-inp-note   { flex: 1; min-width: 120px; }
+
+  /* Filter bar */
+  .timeline-filter-bar {
+    padding: 10px 20px;
+    border-bottom: 0.5px solid var(--border-tertiary);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .filter-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .timeline-filter-bar select {
+    font-size: 13px; padding: 5px 9px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-sans); cursor: pointer;
+  }
+  .timeline-filter-bar select:focus { outline: none; border-color: var(--accent); }
+  .filter-reset {
+    font-size: 12px; color: var(--accent); cursor: pointer;
+    background: none; border: none; font-family: var(--font-sans);
+    padding: 4px 2px; text-decoration: underline;
+  }
+  .filter-reset:hover { opacity: .75; }
+
+  /* Per-client timeline view (tab inside client) */
+  .client-tl-filter {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .client-tl-filter select {
+    font-size: 13px; padding: 5px 9px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+  .client-tl-filter select:focus { outline: none; border-color: var(--accent); }
+
+  /* Timeline tree */
+  .timeline-scroll {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+  }
+  .timeline-scroll::-webkit-scrollbar { width: 4px; }
+  .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+  .timeline-scroll::-webkit-scrollbar-thumb { background: var(--border-secondary); border-radius: 4px; }
+
+  .tl-year-group { margin-bottom: 28px; }
+  .tl-year-heading {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .tl-year-heading::after {
+    content: ''; flex: 1; height: 0.5px; background: var(--border-tertiary);
+  }
+
+  .tl-month-group { margin-bottom: 16px; padding-left: 4px; }
+  .tl-month-heading {
+    font-size: 12px; font-weight: 500; color: var(--accent);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin-bottom: 10px; padding-left: 22px;
+  }
+
+  .tl-day-group { position: relative; padding-left: 22px; margin-bottom: 2px; }
+  /* vertical connector line */
+  .tl-day-group::before {
+    content: ''; position: absolute; left: 7px; top: 22px;
+    width: 1px; bottom: 0;
+    background: var(--border-tertiary);
+  }
+  .tl-day-group:last-child::before { display: none; }
+
+  .tl-day-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; color: var(--text-primary);
+    padding: 4px 0 6px;
+    position: relative;
+  }
+  .tl-day-label::before {
+    content: ''; width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-primary);
+    box-shadow: 0 0 0 1.5px var(--accent);
+    position: absolute; left: -19px; top: 7px;
+    flex-shrink: 0;
+  }
+  .tl-day-date { color: var(--text-secondary); font-weight: 400; font-size: 12px; }
+
+  .tl-events { padding: 0 0 8px 0; }
+
+  .tl-event-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border-tertiary);
+    margin-bottom: 5px;
+    transition: border-color 0.1s;
+  }
+  .tl-event-item:hover { border-color: var(--border-secondary); }
+
+  .tl-event-client-badge {
+    font-size: 11px; padding: 2px 8px;
+    border-radius: 20px; font-weight: 500;
+    white-space: nowrap; flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .tl-event-body { flex: 1; min-width: 0; }
+  .tl-event-title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .tl-event-note { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .tl-event-time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  .tl-event-del {
+    opacity: 0; background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); padding: 3px;
+    border-radius: 4px; font-size: 14px; line-height: 1;
+    transition: opacity 0.15s; flex-shrink: 0;
+  }
+  .tl-event-item:hover .tl-event-del { opacity: 1; }
+  .tl-event-del:hover { color: #A32D2D; }
+
+  .tl-empty { text-align: center; padding: 50px 0; color: var(--text-secondary); font-size: 14px; }
+  .tl-empty i { font-size: 36px; display: block; margin-bottom: 10px; opacity: .3; }
+
+  /* Category chips */
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip {
+    font-size: 12px; padding: 3px 10px;
+    border-radius: 20px; cursor: pointer;
+    border: 0.5px solid var(--border-secondary);
+    background: var(--bg-primary); color: var(--text-secondary);
+    font-family: var(--font-sans); transition: all 0.1s;
+  }
+  .chip.active { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+  .chip:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+  /* Export / Import */
+  .sidebar-actions {
+    padding: 8px 10px;
+    border-top: 0.5px solid var(--border-tertiary);
+    display: flex; gap: 6px;
+  }
+  .btn-action {
+    flex: 1; padding: 6px 4px; font-size: 12px;
+    border: 0.5px solid var(--border-secondary);
+    border-radius: var(--radius-md); cursor: pointer;
+    background: var(--bg-primary); color: var(--text-secondary);
+    font-family: var(--font-sans);
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+  .btn-action:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-primary); }
+  .btn-action.export:hover { border-color: #27500A; color: #27500A; background: #EAF3DE; }
+  .btn-action.import:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-light); }
+  #importFileInput { display: none; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1a1a18; color: #f0efe9;
+    font-size: 13px; padding: 9px 18px;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap; z-index: 9999;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: #5c1a1a; }
+</style>
+</head>
+<body>
+
+<div class="app" role="main">
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="sidebar-header">
+      <i class="ti ti-building-community" aria-hidden="true"></i>
+      <h1>Client Hub</h1>
+    </div>
+
+    <!-- Global nav -->
+    <div class="sidebar-nav">
+      <button class="nav-btn" id="navTimeline" onclick="showGlobalTimeline()">
+        <i class="ti ti-timeline" aria-hidden="true"></i> Timeline
+      </button>
+    </div>
+
+    <!-- Client list -->
+    <div class="client-list" id="clientList" role="list">
+      <div class="client-section-label">Clients</div>
+    </div>
+    <div class="add-client-area">
+      <input type="text" id="newClientInput" placeholder="New client name…" maxlength="60" aria-label="New client name" />
+      <button class="btn-add" onclick="addClient()" aria-label="Add client">
+        <i class="ti ti-plus" aria-hidden="true"></i> Add client
+      </button>
+    </div>
+
+    <!-- Export / Import -->
+    <div class="sidebar-actions">
+      <button class="btn-action export" onclick="exportData()" title="Download all your data as a backup JSON file">
+        <i class="ti ti-download" aria-hidden="true"></i> Export
+      </button>
+      <button class="btn-action import" onclick="document.getElementById('importFileInput').click()" title="Restore data from a previously exported JSON file">
+        <i class="ti ti-upload" aria-hidden="true"></i> Import
+      </button>
+      <input type="file" id="importFileInput" accept=".json" onchange="importData(event)" aria-label="Import backup file" />
+    </div>
+  </aside>
+
+  <div class="main" id="mainPanel" role="region" aria-label="Content"></div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  /* ══════════════════════════════════
+     DATA & CONSTANTS
+  ══════════════════════════════════ */
+  const COLORS = [
+    ['#EEEDFE','#3C3489'],
+    ['#E1F5EE','#085041'],
+    ['#FAECE7','#712B13'],
+    ['#E6F1FB','#0C447C'],
+    ['#EAF3DE','#27500A'],
+    ['#FAEEDA','#633806'],
+    ['#FBEAF0','#72243E'],
+    ['#FEF3E2','#7A4400'],
+  ];
+
+  const TABS = [
+    { id: 'meetings',   label: 'Meeting links',  icon: 'ti-video',             badge: 'badge-meeting', ph: { title: 'e.g. Weekly sync',         url: 'https://meet.google.com/...' } },
+    { id: 'drive',      label: 'Drive',           icon: 'ti-brand-google-drive',badge: 'badge-drive',   ph: { title: 'e.g. Project assets',       url: 'https://drive.google.com/...' } },
+    { id: 'recordings', label: 'Recordings / KT', icon: 'ti-player-play',       badge: 'badge-rec',     ph: { title: 'e.g. Onboarding KT',        url: 'https://drive.google.com/...' } },
+    { id: 'ktdocs',     label: 'KT docs',         icon: 'ti-file-description',  badge: 'badge-doc',     ph: { title: 'e.g. Architecture overview', url: 'https://docs.google.com/...' } },
+    { id: 'daily',      label: 'Daily docs',      icon: 'ti-calendar-week',     badge: 'badge-daily',   ph: { title: 'e.g. Standup notes',        url: 'https://docs.google.com/...' } },
+    { id: 'timeline',   label: 'Timeline',        icon: 'ti-timeline',          badge: '',              ph: {} },
+  ];
+
+  const TL_CATEGORIES = ['Ingestion','Received files','Meeting','Delivery','Review','Sign-off','Bug fix','Deployment','Other'];
+
+  // timeline events stored globally (not per-client) keyed by id
+  // shape: { id, client, date, event, note, category, ts }
+  let tlEvents = [];
+  // client tab filter state
+  let clientTlYear = '';
+  let clientTlMonth = '';
+  // global timeline filter
+  let globalTlClient = '';
+  let globalTlYear = '';
+  let globalTlMonth = '';
+
+  let data = {};
+  let activeClient = null;
+  let activeTab = 'meetings';
+  let view = 'client'; // 'client' | 'globalTimeline'
+
+  /* ══════════════════════════════════
+     PERSIST
+  ══════════════════════════════════ */
+  function save() {
+    try { localStorage.setItem('clienthub_v3', JSON.stringify({ data, activeClient, activeTab, tlEvents, view })); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem('clienthub_v3') || '{}');
+      if (d.data) data = d.data;
+      if (d.activeClient && data[d.activeClient]) activeClient = d.activeClient;
+      if (d.activeTab) activeTab = d.activeTab;
+      if (d.tlEvents) tlEvents = d.tlEvents;
+      if (d.view) view = d.view;
+    } catch(e) {}
+  }
+
+  /* ══════════════════════════════════
+     UTILS
+  ══════════════════════════════════ */
+  function initClient(name) {
+    if (!data[name]) {
+      const idx = Object.keys(data).length % COLORS.length;
+      data[name] = { color: COLORS[idx], meetings: [], drive: [], recordings: [], ktdocs: [], daily: [] };
+    }
+  }
+
+  function getInitials(n) {
+    return n.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+  function clientColor(name) {
+    return data[name] ? data[name].color : ['#e8e8e8','#555'];
+  }
+
+  /* format date YYYY-MM-DD → "Mon DD" */
+  function fmtDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function fmtDay(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short' });
+  }
+
+  /* ══════════════════════════════════
+     SIDEBAR
+  ══════════════════════════════════ */
+  function renderSidebar() {
+    const list = document.getElementById('clientList');
+    const names = Object.keys(data);
+
+    document.getElementById('navTimeline').classList.toggle('active', view === 'globalTimeline');
+
+    if (!names.length) {
+      list.innerHTML = '<div class="client-section-label">Clients</div><div class="no-clients">Add a client below<br>to get started</div>';
+      return;
+    }
+    list.innerHTML = '<div class="client-section-label">Clients</div>' + names.map(n => {
+      const [bg, fg] = data[n].color;
+      return `<div class="client-item${n === activeClient && view === 'client' ? ' active' : ''}" onclick="selectClient('${esc(n)}')" role="listitem" tabindex="0" onkeydown="if(event.key==='Enter')selectClient('${esc(n)}')">
+        <div class="client-avatar" style="background:${bg};color:${fg}" aria-hidden="true">${getInitials(n)}</div>
+        <span class="client-name">${esc(n)}</span>
+        <button class="del-btn" onclick="event.stopPropagation();removeClient('${esc(n)}')" title="Remove ${esc(n)}" aria-label="Remove ${esc(n)}"><i class="ti ti-x"></i></button>
+      </div>`;
+    }).join('');
+  }
+
+  function selectClient(name) {
+    activeClient = name;
+    activeTab = 'meetings';
+    view = 'client';
+    clientTlYear = '';
+    clientTlMonth = '';
+    renderSidebar();
+    renderMain();
+    save();
+  }
+
+  function addClient() {
+    const inp = document.getElementById('newClientInput');
+    const name = inp.value.trim();
+    if (!name) { inp.focus(); return; }
+    if (data[name]) { alert(`"${name}" already exists.`); return; }
+    initClient(name);
+    activeClient = name;
+    activeTab = 'meetings';
+    view = 'client';
+    inp.value = '';
+    renderSidebar();
+    renderMain();
+    save();
+  }
+
+  function removeClient(name) {
+    if (!confirm(`Remove "${name}" and all their stored data?`)) return;
+    delete data[name];
+    // keep timeline events? remove them too for cleanliness
+    tlEvents = tlEvents.filter(e => e.client !== name);
+    if (activeClient === name) { activeClient = null; view = 'client'; }
+    renderSidebar();
+    renderMain();
+    save();
+  }
+
+  /* ══════════════════════════════════
+     MAIN PANEL ROUTER
+  ══════════════════════════════════ */
+  function renderMain() {
+    if (view === 'globalTimeline') { renderGlobalTimeline(); return; }
+    renderClientPanel();
+  }
+
+  /* ══════════════════════════════════
+     CLIENT PANEL
+  ══════════════════════════════════ */
+  function renderClientPanel() {
+    const panel = document.getElementById('mainPanel');
+    if (!activeClient || !data[activeClient]) {
+      panel.innerHTML = `<div class="welcome">
+        <i class="ti ti-building-community" aria-hidden="true"></i>
+        <p>Select a client to view their links</p>
+        <small>Or add a new client from the sidebar</small>
+      </div>`;
+      return;
+    }
+    const [bg, fg] = data[activeClient].color;
+    const tabsHtml = TABS.map(t =>
+      `<button class="tab${activeTab === t.id ? ' active' : ''}" onclick="switchTab('${t.id}')" aria-selected="${activeTab === t.id}">
+        <i class="ti ${t.icon}" aria-hidden="true"></i>${t.label}
+      </button>`
+    ).join('');
+
+    panel.innerHTML = `
+      <div class="main-header">
+        <div class="client-avatar" style="width:36px;height:36px;font-size:13px;background:${bg};color:${fg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0" aria-hidden="true">${getInitials(activeClient)}</div>
+        <span class="client-title">${esc(activeClient)}</span>
+      </div>
+      <div class="tabs" role="tablist">${tabsHtml}</div>
+      <div class="tab-content" id="tabContent" role="tabpanel"></div>`;
+
+    renderTab();
+  }
+
+  function switchTab(id) {
+    activeTab = id;
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.toggle('active', t.getAttribute('onclick') === `switchTab('${id}')`);
+    });
+    renderTab();
+    save();
+  }
+
+  function renderTab() {
+    if (activeTab === 'timeline') { renderClientTimeline(); return; }
+    const tc = document.getElementById('tabContent');
+    if (!tc) return;
+    const tab = TABS.find(t => t.id === activeTab);
+    tc.innerHTML = `
+      <div class="section-label">${esc(tab.label)}</div>
+      <div class="add-row">
+        <input type="text" id="newTitle" placeholder="${esc(tab.ph.title)}" maxlength="80" aria-label="Link title" />
+        <input type="text" id="newUrl"   placeholder="${esc(tab.ph.url)}"   maxlength="500" aria-label="Link URL" />
+        <button class="btn-primary" onclick="addItem()"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
+      </div>
+      <div id="itemList"></div>`;
+    renderItems();
+  }
+
+  function renderItems() {
+    const list = document.getElementById('itemList');
+    if (!list) return;
+    const tab = TABS.find(t => t.id === activeTab);
+    const items = data[activeClient][activeTab] || [];
+    if (!items.length) {
+      list.innerHTML = `<div class="empty"><i class="ti ${tab.icon}" aria-hidden="true"></i>No ${tab.label.toLowerCase()} added yet</div>`;
+      return;
+    }
+    list.innerHTML = items.map((item, i) => `
+      <div class="link-card">
+        <span class="badge ${tab.badge}" aria-hidden="true"><i class="ti ${tab.icon}"></i></span>
+        <div class="link-info">
+          <div class="link-title">${esc(item.title)}</div>
+          <div class="link-url">${esc(item.url)}</div>
+        </div>
+        <div class="link-actions">
+          <button class="icon-btn" onclick="openUrl('${esc(item.url)}')" title="Open link"><i class="ti ti-external-link"></i></button>
+          <button class="icon-btn" onclick="copyUrl('${esc(item.url)}')" title="Copy URL"><i class="ti ti-copy"></i></button>
+          <button class="icon-btn danger" onclick="removeItem(${i})" title="Remove"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  }
+
+  function addItem() {
+    const title = document.getElementById('newTitle').value.trim();
+    const url   = document.getElementById('newUrl').value.trim();
+    if (!title || !url) { if (!title) document.getElementById('newTitle').focus(); else document.getElementById('newUrl').focus(); return; }
+    if (!data[activeClient][activeTab]) data[activeClient][activeTab] = [];
+    data[activeClient][activeTab].push({ title, url });
+    document.getElementById('newTitle').value = '';
+    document.getElementById('newUrl').value = '';
+    document.getElementById('newTitle').focus();
+    renderItems();
+    save();
+  }
+
+  function removeItem(i) {
+    data[activeClient][activeTab].splice(i, 1);
+    renderItems();
+    save();
+  }
+
+  function openUrl(url) { window.open(url, '_blank', 'noopener,noreferrer'); }
+  function copyUrl(url) {
+    navigator.clipboard.writeText(url).catch(() => prompt('Copy this URL:', url));
+  }
+
+  /* ══════════════════════════════════
+     CLIENT TIMELINE TAB
+  ══════════════════════════════════ */
+  function renderClientTimeline() {
+    const tc = document.getElementById('tabContent');
+    if (!tc) return;
+
+    // collect years/months for this client
+    const myEvents = tlEvents.filter(e => e.client === activeClient);
+    const years = [...new Set(myEvents.map(e => e.date.slice(0,4)))].sort().reverse();
+    const months = clientTlYear
+      ? [...new Set(myEvents.filter(e => e.date.slice(0,4) === clientTlYear).map(e => e.date.slice(5,7)))].sort()
+      : [];
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    tc.innerHTML = `
+      <div class="section-label">Timeline</div>
+      <div class="client-tl-filter">
+        <select id="ctlYear" onchange="ctlYearChange()" aria-label="Filter by year">
+          <option value="">All years</option>
+          ${years.map(y => `<option value="${y}"${clientTlYear===y?' selected':''}>${y}</option>`).join('')}
+        </select>
+        <select id="ctlMonth" onchange="ctlMonthChange()" aria-label="Filter by month" ${!clientTlYear?'disabled':''}>
+          <option value="">All months</option>
+          ${months.map(m => `<option value="${m}"${clientTlMonth===m?' selected':''}>${MONTH_NAMES[+m-1]}</option>`).join('')}
+        </select>
+        ${(clientTlYear||clientTlMonth)?`<button class="filter-reset" onclick="ctlReset()">Reset</button>`:''}
+      </div>
+      <div id="clientTlTree"></div>`;
+
+    renderClientTlTree(myEvents);
+  }
+
+  function ctlYearChange() {
+    clientTlYear = document.getElementById('ctlYear').value;
+    clientTlMonth = '';
+    renderClientTimeline();
+  }
+  function ctlMonthChange() {
+    clientTlMonth = document.getElementById('ctlMonth').value;
+    renderClientTimeline();
+  }
+  function ctlReset() { clientTlYear=''; clientTlMonth=''; renderClientTimeline(); }
+
+  function renderClientTlTree(myEvents) {
+    const container = document.getElementById('clientTlTree');
+    if (!container) return;
+
+    let filtered = myEvents;
+    if (clientTlYear) filtered = filtered.filter(e => e.date.slice(0,4) === clientTlYear);
+    if (clientTlMonth) filtered = filtered.filter(e => e.date.slice(5,7) === clientTlMonth);
+    filtered = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
+
+    if (!filtered.length) {
+      container.innerHTML = `<div class="tl-empty"><i class="ti ti-timeline"></i>No timeline events yet</div>`;
+      return;
+    }
+    container.innerHTML = buildTlTree(filtered, false);
+  }
+
+  /* ══════════════════════════════════
+     GLOBAL TIMELINE PAGE
+  ══════════════════════════════════ */
+  function showGlobalTimeline() {
+    view = 'globalTimeline';
+    activeClient = null;
+    renderSidebar();
+    renderGlobalTimeline();
+    save();
+  }
+
+  function renderGlobalTimeline() {
+    const panel = document.getElementById('mainPanel');
+    const clientNames = Object.keys(data);
+
+    // collect distinct years & months from all events
+    const allYears  = [...new Set(tlEvents.map(e => e.date.slice(0,4)))].sort().reverse();
+    const allMonths = globalTlYear
+      ? [...new Set(tlEvents.filter(e => e.date.slice(0,4)===globalTlYear).map(e => e.date.slice(5,7)))].sort()
+      : [];
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const todayStr = new Date().toISOString().slice(0,10);
+
+    panel.innerHTML = `
+      <div class="timeline-page">
+        <div class="timeline-page-header">
+          <h2><i class="ti ti-timeline" aria-hidden="true"></i>Activity Timeline</h2>
+        </div>
+
+        <!-- Add event form -->
+        <div class="timeline-add-bar">
+          <div class="form-row">
+            <select class="tl-sel-client" id="tlAddClient" aria-label="Select client">
+              <option value="">Select client…</option>
+              ${clientNames.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+            </select>
+            <input type="date" class="tl-inp-date" id="tlAddDate" value="${todayStr}" aria-label="Date" />
+            <select id="tlAddCat" aria-label="Category">
+              ${TL_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+            </select>
+            <input type="text" class="tl-inp-event" id="tlAddEvent" placeholder="What happened?" maxlength="120" aria-label="Event title" />
+            <input type="text" class="tl-inp-note" id="tlAddNote" placeholder="Notes (optional)" maxlength="200" aria-label="Notes" />
+            <button class="btn-primary" onclick="addTlEvent()"><i class="ti ti-plus" aria-hidden="true"></i> Add</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="timeline-filter-bar">
+          <span class="filter-label">Filter:</span>
+          <select id="glTlClient" onchange="glFilterChange()" aria-label="Filter by client">
+            <option value="">All clients</option>
+            ${clientNames.map(n => `<option value="${esc(n)}"${globalTlClient===n?' selected':''}>${esc(n)}</option>`).join('')}
+          </select>
+          <select id="glTlYear" onchange="glYearChange()" aria-label="Filter by year">
+            <option value="">All years</option>
+            ${allYears.map(y => `<option value="${y}"${globalTlYear===y?' selected':''}>${y}</option>`).join('')}
+          </select>
+          <select id="glTlMonth" onchange="glMonthChange()" aria-label="Filter by month" ${!globalTlYear?'disabled':''}>
+            <option value="">All months</option>
+            ${allMonths.map(m => `<option value="${m}"${globalTlMonth===m?' selected':''}>${MONTH_NAMES[+m-1]}</option>`).join('')}
+          </select>
+          ${(globalTlClient||globalTlYear||globalTlMonth)?`<button class="filter-reset" onclick="glReset()">Reset filters</button>`:''}
+        </div>
+
+        <!-- Tree -->
+        <div class="timeline-scroll" id="tlTree"></div>
+      </div>`;
+
+    renderGlobalTlTree();
+  }
+
+  function glFilterChange() { globalTlClient = document.getElementById('glTlClient').value; renderGlobalTimeline(); }
+  function glYearChange()   { globalTlYear = document.getElementById('glTlYear').value; globalTlMonth=''; renderGlobalTimeline(); }
+  function glMonthChange()  { globalTlMonth = document.getElementById('glTlMonth').value; renderGlobalTimeline(); }
+  function glReset()        { globalTlClient=''; globalTlYear=''; globalTlMonth=''; renderGlobalTimeline(); }
+
+  function renderGlobalTlTree() {
+    const container = document.getElementById('tlTree');
+    if (!container) return;
+
+    let filtered = [...tlEvents];
+    if (globalTlClient) filtered = filtered.filter(e => e.client === globalTlClient);
+    if (globalTlYear)   filtered = filtered.filter(e => e.date.slice(0,4) === globalTlYear);
+    if (globalTlMonth)  filtered = filtered.filter(e => e.date.slice(5,7) === globalTlMonth);
+    filtered = filtered.sort((a,b) => b.date.localeCompare(a.date));
+
+    if (!filtered.length) {
+      container.innerHTML = `<div class="tl-empty"><i class="ti ti-timeline" aria-hidden="true"></i>${tlEvents.length ? 'No events match the current filters' : 'No events added yet — use the form above to log your first activity'}</div>`;
+      return;
+    }
+    container.innerHTML = buildTlTree(filtered, true);
+  }
+
+  /* Shared tree builder */
+  function buildTlTree(events, showClientBadge) {
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // group: year → month → day → [events]
+    const tree = {};
+    events.forEach(e => {
+      const y = e.date.slice(0,4);
+      const m = e.date.slice(5,7);
+      const d = e.date;
+      if (!tree[y]) tree[y] = {};
+      if (!tree[y][m]) tree[y][m] = {};
+      if (!tree[y][m][d]) tree[y][m][d] = [];
+      tree[y][m][d].push(e);
+    });
+
+    let html = '';
+    const years = Object.keys(tree).sort().reverse();
+
+    years.forEach(y => {
+      html += `<div class="tl-year-group"><div class="tl-year-heading">${y}</div>`;
+      const months = Object.keys(tree[y]).sort().reverse();
+      months.forEach(m => {
+        html += `<div class="tl-month-group"><div class="tl-month-heading">${MONTH_NAMES[+m-1]}</div>`;
+        const days = Object.keys(tree[y][m]).sort().reverse();
+        days.forEach(d => {
+          const dayEvents = tree[y][m][d];
+          html += `<div class="tl-day-group">
+            <div class="tl-day-label">
+              <span>${fmtDate(d)}</span>
+              <span class="tl-day-date">${fmtDay(d)}</span>
+            </div>
+            <div class="tl-events">`;
+          dayEvents.forEach(ev => {
+            const [bg,fg] = clientColor(ev.client);
+            html += `<div class="tl-event-item">
+              ${showClientBadge ? `<span class="tl-event-client-badge" style="background:${bg};color:${fg}">${esc(ev.client)}</span>` : ''}
+              <div class="tl-event-body">
+                <div class="tl-event-title">${esc(ev.category ? '['+ev.category+'] ' : '')}${esc(ev.event)}</div>
+                ${ev.note ? `<div class="tl-event-note">${esc(ev.note)}</div>` : ''}
+              </div>
+              <button class="tl-event-del icon-btn danger" onclick="deleteTlEvent('${ev.id}')" title="Delete event" aria-label="Delete event"><i class="ti ti-trash"></i></button>
+            </div>`;
+          });
+          html += `</div></div>`;
+        });
+        html += `</div>`;
+      });
+      html += `</div>`;
+    });
+
+    return html;
+  }
+
+  /* ══════════════════════════════════
+     TIMELINE CRUD
+  ══════════════════════════════════ */
+  function addTlEvent() {
+    const client = document.getElementById('tlAddClient').value;
+    const date   = document.getElementById('tlAddDate').value;
+    const cat    = document.getElementById('tlAddCat').value;
+    const event  = document.getElementById('tlAddEvent').value.trim();
+    const note   = document.getElementById('tlAddNote').value.trim();
+
+    if (!client) { document.getElementById('tlAddClient').focus(); return; }
+    if (!date)   { document.getElementById('tlAddDate').focus(); return; }
+    if (!event)  { document.getElementById('tlAddEvent').focus(); return; }
+
+    tlEvents.push({ id: uid(), client, date, category: cat, event, note, ts: Date.now() });
+    document.getElementById('tlAddEvent').value = '';
+    document.getElementById('tlAddNote').value = '';
+    save();
+    renderGlobalTimeline();
+  }
+
+  function deleteTlEvent(id) {
+    tlEvents = tlEvents.filter(e => e.id !== id);
+    save();
+    if (view === 'globalTimeline') renderGlobalTimeline();
+    else renderClientTimeline();
+  }
+
+  /* ══════════════════════════════════
+     KEYBOARD
+  ══════════════════════════════════ */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const f = document.activeElement;
+      if (f && f.id === 'newClientInput') addClient();
+      else if (f && (f.id === 'newTitle' || f.id === 'newUrl')) addItem();
+      else if (f && (f.id === 'tlAddEvent' || f.id === 'tlAddNote')) addTlEvent();
+    }
+  });
+
+  /* ══════════════════════════════════
+     EXPORT / IMPORT
+  ══════════════════════════════════ */
+  function exportData() {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data,
+      tlEvents
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href     = url;
+    a.download = `client-hub-backup-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✓ Backup downloaded', false);
+  }
+
+  function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const payload = JSON.parse(ev.target.result);
+
+        // Support both raw state dumps and versioned exports
+        const incoming = payload.version === 1 ? payload : payload;
+        if (!incoming.data || typeof incoming.data !== 'object') throw new Error('Invalid file');
+
+        const clientCount  = Object.keys(incoming.data).length;
+        const eventCount   = Array.isArray(incoming.tlEvents) ? incoming.tlEvents.length : 0;
+        const existingCount = Object.keys(data).length;
+
+        let msg = `This will import ${clientCount} client(s) and ${eventCount} timeline event(s).`;
+        if (existingCount > 0) msg += `\n\nYour existing ${existingCount} client(s) will be merged (existing data kept, new data added).`;
+        msg += '\n\nContinue?';
+
+        if (!confirm(msg)) { e.target.value = ''; return; }
+
+        // Merge: existing clients win on conflict, new ones added
+        Object.keys(incoming.data).forEach(name => {
+          if (!data[name]) {
+            data[name] = incoming.data[name];
+          }
+          // if client already exists, skip (don't overwrite)
+        });
+
+        // Merge timeline events — skip duplicates by id
+        if (Array.isArray(incoming.tlEvents)) {
+          const existingIds = new Set(tlEvents.map(ev => ev.id));
+          incoming.tlEvents.forEach(ev => {
+            if (!existingIds.has(ev.id)) tlEvents.push(ev);
+          });
+        }
+
+        save();
+        renderSidebar();
+        renderMain();
+        showToast(`✓ Imported ${clientCount} client(s) · ${eventCount} event(s)`, false);
+      } catch(err) {
+        showToast('✗ Invalid backup file — could not import', true);
+      }
+      e.target.value = ''; // reset so same file can be re-imported
+    };
+    reader.readAsText(file);
+  }
+
+  /* ══════════════════════════════════
+     TOAST
+  ══════════════════════════════════ */
+  let toastTimer = null;
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', isError);
+    t.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ══════════════════════════════════
+     BOOT
+  ══════════════════════════════════ */
+  load();
+  renderSidebar();
+  renderMain();
+</script>
+</body>
+</html>
